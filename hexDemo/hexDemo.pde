@@ -1,7 +1,9 @@
-// Doodle recorder for the PEmbroider library for Processing!
-// Press 's' to save the embroidery file. Press space to clear.
-
 import processing.embroider.*;
+
+// Hex Embroidery drawer for the PEmbroider library for Processing!
+// Press 's' to save the embroidery file. Press space to clear.
+// Press 'i' to insert hex (this is the default mode)
+// Press 'd' to add a line dividing a hex.
 PEmbroiderGraphics E;
 int fileNumber = 1;
 
@@ -12,18 +14,25 @@ ArrayList<PVector> marks;
 FloatList xs;
 FloatList ys;
 ArrayList<PVector> vertices;
+ArrayList<ArrayList<PVector>> splits;
 
-float EXT_ANGLE = 1.04719755; // 60 deg. in radians
-int STARTX = 50;
-int STARTY = 50;
-int SIDE = 50; // SIDE length
-int ROWS = 20;
-int COLS = 21; // Has to be odd.
+float SQRT3 = sqrt(3);
+int ROWS = 10;
+int COLS = 10;
+int RADIUS = 40;
+float YOFFSET = 0;
+float XOFFSET = 0;
+
+// should clicks be used to divide or add/remove hexagons?
+boolean divideMode = false;
+PVector divideStart = null;
+PVector divideEnd = null;
 
 //===================================================
 void setup() { 
-  size (800, 600);
-
+  size(900,520);
+  
+  println(""+width+","+height);
   E = new PEmbroiderGraphics(this, width, height);
   
   render = createGraphics(800,600);
@@ -33,18 +42,15 @@ void setup() {
   xs = new FloatList();
   ys = new FloatList();
   vertices = new ArrayList<PVector>();
+  splits = new ArrayList<ArrayList<PVector>>();
+  //noLoop();
 }
 
 //===================================================
 void draw() {
-  //var hexagon1 = null;
-  //var signChanger = -1;
   background(255);
-  drawGrid();
-
   E.beginDraw(); 
   E.clear();
-  //E.noFill(); 
   E.fill(0, 0, 255);
 
   // Set some graphics properties
@@ -53,26 +59,47 @@ void draw() {
   E.strokeSpacing(5.0); 
   E.strokeMode(PEmbroiderGraphics.PERPENDICULAR);
   E.RESAMPLE_MAXTURN = 0.8f; // 
-  E.setStitch(10, 40, 0.0);
-  E.hatchSpacing(20); // sets the density of adjacent runs (in machine units)
+  E.setStitch(10, 20, 0.0);
+  E.hatchSpacing(10); // sets the density of adjacent runs (in machine units)
+
+  // Draw the underlying grid
+  drawGrid();
 
   // Draw all previous marks
   for (int m=0; m<marks.size(); m++) {
     PVector mthMark = marks.get(m); 
     if (mthMark == null) println(m+" is null"); 
-    else    drawHex(mthMark.x, mthMark.y,50);
+    else drawHex(mthMark.x, mthMark.y);
+  }
+
+  // Draw all the divisions
+  for (int d=0; d<splits.size(); d++) {
+    stroke(0, 0, 127);
+    ArrayList<PVector> split = splits.get(d);
+    PVector start = split.get(0);
+    PVector end = split.get(1);
+    line(start.x, start.y, end.x, end.y);
+  }
+
+  if (divideMode && (divideStart != null)) {
+    stroke(0, 127, 0);
+    println("drawing line");
+    line(divideStart.x, divideStart.y, divideEnd.x, divideEnd.y);
   }
   
   E.visualize();
 }
 
 void drawGrid() {
-  int signChanger = -1;
-  stroke(30);
-  for(var i = 0; i <= ROWS; i++) {
-    for(var j = 0; j <= COLS; j++) {
-      float x = i * SIDE * 1.73205 + STARTY + signChanger * 0.866025 * SIDE / 2 + SIDE / 2;
-      float y = STARTX + 1.5 * j * SIDE;
+  stroke(50);
+  boolean odd; 
+  
+  for(var row = 0; row <= ROWS; row++) {
+    for(var col = 0; col <= COLS; col++) {
+      float x =  col*RADIUS*3/2;
+      float y =  row*SQRT3*RADIUS - RADIUS*SQRT3/(1+col%2);
+      
+      //println("row/col: " + row + "," + col + "x/y:" + x+","+y);
       xs.append(x);
       ys.append(y);
       vertices.add(new PVector(x, y));
@@ -80,41 +107,25 @@ void drawGrid() {
       line(x, 0, x, height);
       line(0, y, width, y);
       stroke(127,0,0);
-      point(x, y);
-      signChanger = signChanger * -1;
+      circle(x, y, 2);
+      //drawHex(x, y);
     }
   }
-  //for (int x=0; x<=width; x++) {
-  //  for (int y=0; y<=height; y++) {
-  //    //println(""+x*gridSize+","+0+":"+x*gridSize+","+height);
-  //    line(x*gridSize, 0, x*gridSize, height);
-  //    //println(""+0+","+y*gridSize+":"+width+","+y*gridSize);
-  //    line(0, y*gridSize, width, y*gridSize);
-  //  }
-  //}
-   
 }
   
-void drawHex(float x, float y, float radius){
-    //noFill();
-    //stroke(0);
-      //E.hatchMode(PEmbroiderGraphics.CROSS);
+void drawHex(float x, float y){
     E.stroke(0, 0, 0); 
     E.hatchAngleDeg(40);  // sets the orientation for SATIN & PARALLEL (in degrees)
     E.beginShape();
-    for(float a = 0; a < TWO_PI; a+=TWO_PI/6){
-      float xx = sin(a) * radius + x;
-      float yy = cos(a) * radius + y;
-      E.vertex(xx,yy);
+    for (float theta = 0; theta < TWO_PI; theta += TWO_PI/6) {
+      E.vertex(x+RADIUS*cos(theta), y+RADIUS*sin(theta));
     }
     E.endShape();
     E.noStroke();
     E.beginShape();
     E.hatchAngleDeg(130);
-    for(float a = 0; a < TWO_PI; a+=TWO_PI/6){
-      float xx = sin(a) * radius + x;
-      float yy = cos(a) * radius + y;
-      E.vertex(xx,yy);
+    for (float theta = 0; theta < TWO_PI; theta += TWO_PI/6) {
+      E.vertex(x+RADIUS*cos(theta), y+RADIUS*sin(theta));
     }
     E.endShape();
     E.stroke(0, 0, 0); 
@@ -122,44 +133,78 @@ void drawHex(float x, float y, float radius){
 
 //===================================================
 PVector findNearest(int x, int y) {
+  float row = (x+RADIUS/2)%(RADIUS*3/2);
+  float col = y%(RADIUS*SQRT3);
+  println("x/y"+x+","+y);
+  println("row/col"+row+","+col);
   
-  float row = 0;
-  float col = 0;
-  for (int i =0; i<xs.size(); i++) {
-    if (abs(x-xs.get(i)) < abs(x-row)) {
-      row = xs.get(i);
-    }
-  }
-  
-  for (int j =0; j<ys.size(); j++) {
-    if (abs(x-ys.get(j)) < abs(y-col)) {
-      col = ys.get(j);
-    }
-  }
-  
+  row = x - row+RADIUS/2;
+  col = y - col+RADIUS*SQRT3/2;
+  println("row%RADIUS"+row+","+row%RADIUS);
+
+  if (row%RADIUS==0)col = col - RADIUS*SQRT3/2;
+
+  println("row/col" + row + "," + col);
   return new PVector(row,col);
 }
 
+boolean containsMark(PVector newMark) {
+  if (newMark == null) return false;
+  println("checking if marks contains: " + newMark.x + "," + newMark.y);
+  for (int i=0; i<marks.size(); i++) {
+    var mark = marks.get(i);
+    if ((mark.x == newMark.x) && (mark.y == newMark.y)) return true;
+  }
+  return false;
+}
 //===================================================
 void mousePressed() {
+  println("mouse pressed============+");
   // Create a new current mark
-  currentMark = findNearest(mouseX, mouseY);
-  if (marks.contains(currentMark)) {
-    marks.remove(currentMark);
-    currentMark = null;
+  var mark = findNearest(mouseX, mouseY);
+  if (divideMode) {
+    println("divideMode");
+    divideStart = mark;
+  } else if (mark != null) {
+    if (containsMark(mark)) {
+      marks.remove(mark);
+      currentMark = null;
+      println("removing mark");
+    } else {
+      println("setting mark");
+      currentMark = mark;
+    }
   }
+}
+
+void mouseMoved() {
+  divideEnd =findNearest(mouseX, mouseY); //new PVector(mouseX, mouseY);
 }
 
 //===================================================
 void mouseReleased() {
   // Add the current mark to the arrayList of marks
-  if (currentMark != null) marks.add(currentMark); 
-  E.printStats();
+  if (currentMark != null) {
+    marks.add(currentMark); 
+    println("adding mark: " + currentMark.x + "," + currentMark.y);
+    currentMark = null;
+  }
+
+  if (divideMode) {
+    divideEnd = findNearest(mouseX, mouseY);
+    ArrayList divide = new ArrayList<PVector>();
+    divide.add(divideStart);
+    divide.add(divideEnd);
+    splits.add(divide);
+    divideMode = false;
+  }
+  //E.printStats();
 }
 
 
 //===================================================
 void keyPressed() {
+
   if (key == ' ') {
     currentMark = null; 
     marks.clear();
@@ -173,5 +218,9 @@ void keyPressed() {
     
     E.endDraw(); // write out the file
     fileNumber += 1;
+  } else if (key == 'd' || key == 'D') { // D to create cuts 
+    divideMode = true;
+  } else if (key == 'i' || key == 'I') { // I to switch to insert mode
+    divideMode = false;
   }
 }
