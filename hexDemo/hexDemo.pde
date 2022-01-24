@@ -5,9 +5,8 @@ import processing.embroider.*;
 // Press 'i' to insert hex (this is the default mode)
 // Press 'd' to add a line dividing a hex.
 PEmbroiderGraphics E;
+PGraphics offscreenBuffer;
 int fileNumber = 1;
-
-PGraphics render;
 
 PVector currentMark;
 ArrayList<PVector> marks;
@@ -17,16 +16,16 @@ ArrayList<ArrayList<PVector>> splits;
 float SQRT3 = sqrt(3);
 int ROWS = 8;
 int COLS = 14;
-int RADIUS = 40;
-float YOFFSET = 0;
-float XOFFSET = 0;
+int RADIUS = 50;
+boolean OFFSCREEN = false;
 
 // should clicks be used to divide or add/remove hexagons?
 boolean divideMode = false;
 PVector divideStart = null;
 PVector divideEnd = null;
 
-PGraphics PG;
+int WHITE = 255;
+int BLACK = 0;
 
 //===================================================
 void setup() { 
@@ -34,8 +33,7 @@ void setup() {
   
   println(""+width+","+height);
   E = new PEmbroiderGraphics(this, width, height);
-  
-  render = createGraphics(800,600);
+  offscreenBuffer = createGraphics(width, height);
   
   currentMark = null;
   marks = new ArrayList<PVector>();
@@ -46,40 +44,43 @@ void setup() {
 
 //===================================================
 void draw() {
-  background(255);
-  E.beginDraw(); 
-  E.clear();
-  E.fill(0, 0, 255);
+  background(200);
 
-  // Set some graphics properties
-  E.stroke(0, 0, 0); 
-  E.strokeWeight(5); 
-  E.strokeSpacing(5.0); 
-  E.strokeMode(PEmbroiderGraphics.PERPENDICULAR);
-  E.RESAMPLE_MAXTURN = 0.8f; // 
-  E.setStitch(10, 20, 0.0);
-  E.hatchSpacing(10); // sets the density of adjacent runs (in machine units)
-
-  // Draw the underlying grid
+ // Draw the underlying grid
   drawGrid();
 
-  // Draw all previous marks
-  drawHexes();
-  //generateEmbroideryFromRasterGraphics();
-
-  // Draw all the divisions
-  //stroke(0, 0, 127);
-  //strokeWeight(5);
-  //for (int d=0; d<splits.size(); d++) {
-  //  ArrayList<PVector> split = splits.get(d);
-  //  PVector start = split.get(0);
-  //  PVector end = split.get(1);
-  //  //println(start.x+","+ start.y+","+end.x+","+ end.y);
-  //  line(start.x, start.y, end.x, end.y);
+  if (OFFSCREEN) {
+    offscreenBuffer.beginDraw();
+    offscreenBuffer.background(BLACK);
+    //offscreenBuffer.noStroke();
+    offscreenBuffer.stroke(127,0,0);
+    offscreenBuffer.strokeWeight(3);
+    offscreenBuffer.fill(WHITE); 
+  } else {
+    E.beginDraw(); 
+    E.clear();
+    
+    E.beginCull();
+    E.CULL_SPACING = 5;
+    basicEmbroiderySettings();
+  }
+  
+  drawHexes(OFFSCREEN);
+  if(OFFSCREEN) {
+    offscreenBuffer.fill(WHITE);
+  } //else {
+    //E.noFill();
+  
+  drawSplits(OFFSCREEN);
+  
+  //if (OFFSCREEN) {
+  //  offscreenBuffer.endDraw();
+  //  generateEmbroideryFromRasterGraphics();
+  //} else {
+  //  E.visualize();
+  //  E.endDraw();
   //}
-  //strokeWeight(1);
-  //stroke(0);
-
+  
   if (divideMode && (divideStart != null)) {
     stroke(0, 127, 0);
     strokeWeight(5);
@@ -88,8 +89,38 @@ void draw() {
     strokeWeight(1);
     stroke(0);
   }
+   E.endCull();
+
+  //if (!mousePressed) {
+    // Very important function, produces optimized paths!
+    E.optimize(); 
+  //}
+  // params: colors, stitches, route
+  E.visualize(true, true, true);
+}
   
-  E.visualize();
+void basicEmbroiderySettings() {
+    E.stroke(BLACK);  //
+    E.strokeWeight(10);  //
+    //E.fill(BLACK);
+    E.fill(0, 0, 255);
+    E.strokeSpacing(5.0);  
+    //E.noStroke(); 
+    E.setRenderOrder(PEmbroiderGraphics.STROKE_OVER_FILL); // or E.FILL_OVER_STROKE
+    E.strokeMode(PEmbroiderGraphics.PERPENDICULAR); //
+    E.strokeLocation(PEmbroiderGraphics.CENTER); // or E.OUTSIDE, E.INSIDE
+    //E.hatchMode(PEmbroiderGraphics.VECFIELD); //
+    //E.HATCH_VECFIELD=new CrossField();
+    E.hatchMode(PEmbroiderGraphics.CROSS); //
+    //E.HATCH_ANGLE = radians(45);
+    //E.HATCH_ANGLE2 = radians(-45);
+    //E.STROKE_CAP = PConstants.SQUARE;
+    //E.NO_CONNECT = true;
+    E.HATCH_SPACING = 8;
+    //E.satinMode(PEmbroiderGraphics.ZIGZAG);
+    E.setStitch(10, 15, 0);  //
+    //E.RESAMPLE_MAXTURN = 0.8f; //
+    randomSeed(5);
 }
 
 void drawGrid() {
@@ -101,7 +132,7 @@ void drawGrid() {
       float y =  row*SQRT3*RADIUS - RADIUS*SQRT3/(1+col%2);
       
       vertices.add(new PVector(x, y));
-      stroke(0);
+      stroke(BLACK);
       line(x, 0, x, height);
       line(0, y, width, y);
       stroke(127,0,0);
@@ -110,76 +141,79 @@ void drawGrid() {
   }
 }
   
-void drawHexes() {
-    //PG = createGraphics(900, 520);
-    //PG.beginDraw();
-    
+void drawHexes(boolean offScreen) {
     for (int m=0; m<marks.size(); m++) {
       PVector mthMark = marks.get(m); 
       if (mthMark == null) println(m+" is null"); 
       else {
-        drawHex(mthMark.x, mthMark.y);
-        //PG.beginShape();
-        //for (float theta = 0; theta < TWO_PI; theta += TWO_PI/6) {
-        //  PG.vertex(mthMark.x+RADIUS*cos(theta), mthMark.y+RADIUS*sin(theta));
-        //}
-        //PG.endShape();
+        if(offScreen) {
+          offscreenBuffer.beginShape();
+          for (float theta = 0; theta < TWO_PI; theta += TWO_PI/6) {
+            offscreenBuffer.vertex(mthMark.x+RADIUS*cos(theta), mthMark.y+RADIUS*sin(theta));
+          }
+          offscreenBuffer.endShape();
+        } else {
+          drawHex(mthMark.x, mthMark.y);
+        }
       }
-    }
-    for (int s=0; s<splits.size(); s++) {
-      ArrayList<PVector> split = splits.get(s);
-      //PG.rect(split.get(0).x, split.get(0).y, split.get(1).x, split.get(1).y);
-      E.beginCull();
-      E.strokeWeight(0);
-      E.fill(0);
-      E.beginShape();
-      E.vertex(split.get(0).x, split.get(0).y);
-      E.vertex(split.get(0).x+0.01, split.get(0).y+0.01);
-      E.vertex(split.get(1).x+0.01, split.get(1).y+0.01);
-      E.vertex(split.get(1).x,split.get(1).y);
-      E.vertex(split.get(0).x, split.get(0).y);
-      E.endShape();
-      E.endCull();
-    }
-    //PG.endDraw();
+    }  
 }
+
+void drawSplits(boolean offScreen) {
+  // Draw all the divisions
+  
+  for (int s=0; s<splits.size(); s++) {
+      ArrayList<PVector> split = splits.get(s);
+      if(offScreen) {
+        offscreenBuffer.beginShape();
+        offscreenBuffer.vertex(split.get(0).x, split.get(0).y);
+        offscreenBuffer.vertex(split.get(0).x+0.01, split.get(0).y+0.01);
+        offscreenBuffer.vertex(split.get(1).x+0.01, split.get(1).y+0.01);
+        offscreenBuffer.vertex(split.get(1).x,split.get(1).y);
+        offscreenBuffer.vertex(split.get(0).x, split.get(0).y);
+        offscreenBuffer.vertex(split.get(0).x, split.get(0).y);
+        offscreenBuffer.endShape();
+      }
+      else {
+        E.beginShape();
+        E.vertex(split.get(0).x, split.get(0).y);
+        E.vertex(split.get(0).x+0.01, split.get(0).y+0.01);
+        E.vertex(split.get(1).x+0.01, split.get(1).y+0.01);
+        E.vertex(split.get(1).x,split.get(1).y);
+        E.vertex(split.get(0).x, split.get(0).y);
+        E.vertex(split.get(0).x, split.get(0).y);
+        E.endShape();
+      }
+  }
+}
+
+void drawHex(float x, float y){
+    E.beginShape();
+    for (float theta = 0; theta < TWO_PI; theta += TWO_PI/6) {
+      E.vertex(x+RADIUS*cos(theta), y+RADIUS*sin(theta));
+    }
+    E.endShape();
+}
+
 
 //--------------------------------------------
 void generateEmbroideryFromRasterGraphics() {
   E.beginDraw(); 
   E.clear();
-  //E.fill(0,0,0);
-  //E.stroke(0); 
-  E.stroke(0, 0, 0); 
-  E.strokeWeight(5); 
-  E.strokeSpacing(5.0); 
-  E.strokeMode(PEmbroiderGraphics.PERPENDICULAR);
-  E.RESAMPLE_MAXTURN = 0.8f; // 
-  E.strokeMode(PEmbroiderGraphics.TANGENT);         // Stitches go in the same direction as stroke
-  E.setStitch(10, 20, 0.0);
-  E.hatchSpacing(10); // sets the density of adjacent runs (in machine units)
 
-  E.hatchRaster(PG, 0, 0);
+  basicEmbroiderySettings();
+  
+  E.stroke(127,0,0);  //
+
+  E.image(offscreenBuffer, 0, 0); //
+  //E.hatchRaster(offscreenBuffer, 0, 0);
+
+  E.visualize();
+  E.endDraw();
+  
 }
-
-void drawHex(float x, float y){
-    E.stroke(0, 0, 0); 
-    E.hatchAngleDeg(40);  // sets the orientation for SATIN & PARALLEL (in degrees)
-    E.beginShape();
-    for (float theta = 0; theta < TWO_PI; theta += TWO_PI/6) {
-      E.vertex(x+RADIUS*cos(theta), y+RADIUS*sin(theta));
-    }
-    E.endShape();
-    E.noStroke();
-    E.beginShape();
-    E.hatchAngleDeg(130);
-    for (float theta = 0; theta < TWO_PI; theta += TWO_PI/6) {
-      E.vertex(x+RADIUS*cos(theta), y+RADIUS*sin(theta));
-    }
-    E.endShape();
-    E.stroke(0, 0, 0); 
-}
-
+ 
+ 
 //===================================================
 PVector findNearest(int x, int y) {
   float row = (x+RADIUS/2)%(RADIUS*3/2);
@@ -274,9 +308,10 @@ void keyPressed() {
   if (key == ' ') {
     currentMark = null; 
     marks.clear();
-    
+  } else if (key == 'o' || key == 'O') { // O to toggle drawing style
+    OFFSCREEN = !OFFSCREEN;
   } else if (key == 's' || key == 'S') { // S to save
-    E.optimize(); // slow, but very good and important
+    //E.optimize(); // slow, but very good and important
     E.printStats(); 
     String outputFilePath = sketchPath("hexDemo" + fileNumber + ".dst");
     E.setPath(outputFilePath); 
@@ -290,5 +325,19 @@ void keyPressed() {
     currentMark = null;
   } else if (key == 'i' || key == 'I') { // I to switch to insert mode
     divideMode = false;
+  }
+}
+
+class CrossField implements PEmbroiderGraphics.VectorField {
+  float px=0;
+  float py=0;
+  public PVector get(float x, float y) {
+    
+    x *= 0.05;
+    //new PVector(1, 0.5*sin(x));
+    PVector pv = new PVector(px, x);
+    this.px = x;
+    this.py = y;
+    return pv;
   }
 }
