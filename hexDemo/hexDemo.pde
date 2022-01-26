@@ -16,7 +16,7 @@ ArrayList<ArrayList<PVector>> splits;
 float SQRT3 = sqrt(3);
 int ROWS = 8;
 int COLS = 14;
-int RADIUS = 50;
+int RADIUS = 80;
 boolean OFFSCREEN = false;
 
 // should clicks be used to divide or add/remove hexagons?
@@ -29,7 +29,7 @@ int BLACK = 0;
 
 //===================================================
 void setup() { 
-  size(900,520);
+  size(1000,920);
   
   println(""+width+","+height);
   E = new PEmbroiderGraphics(this, width, height);
@@ -60,7 +60,7 @@ void draw() {
     E.beginDraw(); 
     E.clear();
     
-    E.beginCull();
+    //E.beginCull();
     E.CULL_SPACING = 5;
     basicEmbroiderySettings();
   }
@@ -89,7 +89,7 @@ void draw() {
     strokeWeight(1);
     stroke(0);
   }
-   E.endCull();
+   //E.endCull();
 
   //if (!mousePressed) {
     // Very important function, produces optimized paths!
@@ -101,14 +101,14 @@ void draw() {
   
 void basicEmbroiderySettings() {
     E.stroke(BLACK);  //
-    E.strokeWeight(10);  //
+    E.strokeWeight(35);  //
     //E.fill(BLACK);
     E.fill(0, 0, 255);
-    E.strokeSpacing(5.0);  
+    E.strokeSpacing(3.0);  
     //E.noStroke(); 
     E.setRenderOrder(PEmbroiderGraphics.STROKE_OVER_FILL); // or E.FILL_OVER_STROKE
     E.strokeMode(PEmbroiderGraphics.PERPENDICULAR); //
-    E.strokeLocation(PEmbroiderGraphics.CENTER); // or E.OUTSIDE, E.INSIDE
+    E.strokeLocation(PEmbroiderGraphics.INSIDE); // or E.OUTSIDE, E.INSIDE, CENTER
     //E.hatchMode(PEmbroiderGraphics.VECFIELD); //
     //E.HATCH_VECFIELD=new CrossField();
     E.hatchMode(PEmbroiderGraphics.CROSS); //
@@ -116,7 +116,7 @@ void basicEmbroiderySettings() {
     //E.HATCH_ANGLE2 = radians(-45);
     //E.STROKE_CAP = PConstants.SQUARE;
     //E.NO_CONNECT = true;
-    E.HATCH_SPACING = 8;
+    E.HATCH_SPACING = 10;
     //E.satinMode(PEmbroiderGraphics.ZIGZAG);
     E.setStitch(10, 15, 0);  //
     //E.RESAMPLE_MAXTURN = 0.8f; //
