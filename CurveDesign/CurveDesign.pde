@@ -1,6 +1,7 @@
 import processing.embroider.*;
 import processing.svg.PGraphicsSVG;
 
+// where I left things: Was working (committed), now trying to be able to select quadrant and orientation separately
 
 // Curve Embroidery drawer for the PEmbroider library for Processing!
 // Press 's' to save the embroidery file. Press space to clear.
@@ -53,7 +54,10 @@ void draw() {
   E.beginDraw(); 
   E.clear();
   offscreenBuffer.beginDraw();
+  //offscreenBuffer.clear();
   onscreenBuffer.beginDraw();
+  onscreenBuffer.clear();
+  
   //E.beginCull();
   E.CULL_SPACING = 5;
   
@@ -131,6 +135,46 @@ int[] findNearest(int x, int y) {
   return ret;
 }
 
+int[] adjustXY(int orientation, int quadrant) {
+  int [] ret = {0, 0};
+  
+  switch (orientation) {
+      case 0:  {
+         switch (quadrant) {
+          case 1: ret[0] = -RADIUS/2; break;
+          case 2: ret[0] = -RADIUS/2; ret[1] = -RADIUS/2; break;
+          case 3: ret[1] = -RADIUS/2; 
+         }
+         return ret;
+      }
+      case 1: {
+        switch (quadrant) {
+          case 0: ret[0] =  RADIUS/2; break;
+          case 2: ret[1] = -RADIUS/2; break;
+          case 3: ret[0] = RADIUS/2; ret[1] = -RADIUS/2; 
+         }
+        return ret;
+      }
+      case 2: {
+        switch (quadrant) {
+          case 0: ret[0] = ret[1] =  RADIUS/2; break;
+          case 1: ret[1] = RADIUS/2; break;
+          case 3: ret[0] = RADIUS/2; 
+        }
+      return ret;
+    }
+      case 3: {
+        switch (quadrant) {
+          case 0: ret[1] =  RADIUS/2; break;
+          case 1: ret[0] = -RADIUS/2; ret[1] = RADIUS/2; break;
+          case 2: ret[0] = -RADIUS/2; 
+         }
+         return ret;
+      }
+    } 
+  return ret;
+}
+
 
 //===================================================
 void mouseReleased() {
@@ -140,14 +184,14 @@ void mouseReleased() {
   var mark = marks.get(coords[0], coords[1], coords[2]);
 
   if (mark == null) {
+      print(coords[2]);
       mark = new SingleCurve(coords[0], coords[1], coords[2]);
       println("create" + mark);
       marks.put(mark);
   } else {
     println("rotate\n" + marks);
-    marks.delete(mark.x, mark.y, mark.quadrant);
-    mark.quadrant = (mark.quadrant+1)%4;
-    marks.put(mark);
+    if (mark.orientation == 3) marks.delete(mark.x, mark.y, mark.quadrant);
+    mark.orientation = (mark.orientation+1)%4;
     println(marks);
   } 
 }
@@ -197,52 +241,59 @@ class SingleCurve {
     this(x, y, 0, 0, RADIUS);
   }
   
-  SingleCurve(int x, int y, int orientation) {
-    this(x, y, orientation, orientation, RADIUS);
+  SingleCurve(int x, int y, int quadrant) {
+    this(x, y, quadrant, 0, RADIUS, 1);
   }
   
-  SingleCurve(int x, int y, int orientation, int quadrant) {
-    this(x, y, orientation, quadrant, RADIUS);
+  SingleCurve(int x, int y, int quadrant, int orientation) {
+    this(x, y, quadrant, orientation, RADIUS, 1);
   }
-  SingleCurve(int x, int y, int orientation, int quadrant, int radius) {
-    this(x, y, orientation, quadrant, radius, 1);
+  SingleCurve(int x, int y, int quadrant, int orientation, int radius) {
+    this(x, y, quadrant, orientation, radius, 1);
   }
-  SingleCurve(int x, int y, int orientation, int quadrant, int radius, float curvature) {
+  SingleCurve(int x, int y, int quadrant, int orientation, int radius, float curvature) {
     this.curvature = curvature;
-    this.orientation = orientation;
+    this.orientation = 0;
     this.radius = radius;
     this.quadrant = quadrant;
     this.x = x;
     this.y = y;
   }
   
+  
   void update(PGraphics buffer) {
     // draw a square onscreen for reference
     //rect(x, y, radius, radius);
-    switch (quadrant) {
-      case 0: x = RADIUS*x; y = RADIUS*y; break;
-      case 1: 
-    }
-    switch (orientation) {
-      case 0: buffer.arc(RADIUS*x,RADIUS*y, radius, radius, radians(0), radians(90)); break;
-      case 1: buffer.arc(RADIUS*x,RADIUS*y, radius, radius, radians(90), radians(180)); break;
-      case 2: buffer.arc(RADIUS*x,RADIUS*y, radius, radius,radians(180), radians(270)); break;
-      case 3: buffer.arc(RADIUS*x,RADIUS*y, radius, radius,  radians(-90), radians(0));
-    }
+    var adjust = adjustXY(orientation, quadrant);
+    var localx = this.x*RADIUS + adjust[0];
+    var localy = this.y*RADIUS + adjust[1];
     
+    switch (orientation) {
+      case 0: buffer.arc(localx, localy, radius, radius, radians(0), radians(90)); break;
+      case 1: buffer.arc(localx, localy, radius, radius, radians(90), radians(180)); break;
+      case 2: buffer.arc(localx, localy, radius, radius,radians(180), radians(270)); break;
+      case 3: buffer.arc(localx, localy, radius, radius,  radians(-90), radians(0));
+    }
   }
+  
   void update(PEmbroiderGraphics ebuffer) {
     //println("drawing pgraphic for: " + this);
     //rect(x, y, radius, radius);
+    var adjust = adjustXY(orientation, quadrant);
+    var localx = this.x*RADIUS + adjust[0];
+    var localy = this.y*RADIUS + adjust[1];
+    
+    //println("quadrant: "+ quadrant + ", orientation: " + orientation);
     switch (orientation) {
-      case 0: ebuffer.arc(RADIUS*x,RADIUS*y, radius, radius, radians(0), radians(90)); break;
-      case 1: ebuffer.arc(RADIUS*x,RADIUS*y, radius, radius, radians(90), radians(180)); break;
-      case 2: ebuffer.arc(RADIUS*x,RADIUS*y, radius, radius,radians(180), radians(270)); break;
-      case 3: ebuffer.arc(RADIUS*x,RADIUS*y, radius, radius,  radians(-90), radians(0));
+      case 0: ebuffer.arc(localx, localy, radius, radius, radians(0), radians(90)); break;
+      case 1: ebuffer.arc(localx, localy, radius, radius, radians(90), radians(180)); break;
+      case 2: ebuffer.arc(localx, localy, radius, radius,radians(180), radians(270)); break;
+      case 3: ebuffer.arc(localx, localy, radius, radius,  radians(-90), radians(0));
     }
   }
+  
   String toString() {
-    return "Curve at " + x + "," + y + ":q" + quadrant + ":c"+curvature;
+    return "Curve at " + x + "," + y + ":q" + quadrant + ":o"+orientation;
   }
 }
 
