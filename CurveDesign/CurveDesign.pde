@@ -123,7 +123,7 @@ void drawGrid() {
 }
  
  
-//===================================================
+//===============================    HELPERS ===============================
 int[] findNearest(int x, int y) {
   int xfloor = floor(x/RADIUS);
   int yfloor = floor(y/RADIUS);
@@ -186,7 +186,71 @@ int[] adjustXY(int orientation, int quadrant) {
   return ret;
 }
 
+void bezierArc(PGraphics buffer, int centerx, int centery,  int radius, float angleStart, float angleEnd) {
+    // assuming angleStart and angleEnd are in raians
 
+    // Finding the coordinates of the control points in a simplified case where the center of the circle is at [0,0]
+    var relControlPoints = getRelativeControlPoints(angleStart, angleEnd, radius/2);
+    var startp = getPointAtAngle(angleStart, centerx, centery, radius/2);
+    var endp = getPointAtAngle(angleEnd, centerx, centery, radius/2);
+    buffer.bezier(startp[0], startp[1], 
+                   centerx + relControlPoints[0][0], centery + relControlPoints[0][1],
+                   centerx + relControlPoints[1][0], centery + relControlPoints[1][1],
+                   endp[0], endp[1]);
+}
+
+void bezierArc(PEmbroiderGraphics buffer, int centerx, int centery,  int radius, float angleStart, float angleEnd) {
+    // assuming angleStart and angleEnd are in raians
+
+    // Finding the coordinates of the control points in a simplified case where the center of the circle is at [0,0]
+    var relControlPoints = getRelativeControlPoints(angleStart, angleEnd, radius/2);
+    var startp = getPointAtAngle(angleStart, centerx, centery, radius/2);
+    var endp = getPointAtAngle(angleEnd, centerx, centery, radius/2);
+    buffer.bezier(startp[0], startp[1], 
+                   centerx + relControlPoints[0][0], centery + relControlPoints[0][1],
+                   centerx + relControlPoints[1][0], centery + relControlPoints[1][1],
+                   endp[0], endp[1]);
+}
+
+
+float[][] getRelativeControlPoints(float angleStart, float angleEnd, int radius) {
+    // factor is the commonly reffered parameter K in the articles about arc to cubic bezier approximation 
+    float factor = findK(angleStart, angleEnd);
+
+    // Distance from [0, 0] to each of the control points. Basically this is the hypotenuse of the triangle [0,0], a control point and the projection of the point on Ox
+    float distToCtrPoint = sqrt(radius * radius * (1 + factor * factor));
+    // Angle between the hypotenuse and Ox for control point 1.
+    float angle1 = angleStart + atan(factor);
+    // Angle between the hypotenuse and Ox for control point 2.
+    float angle2 = angleEnd - atan(factor);
+    float[][] ret = new float[2][2];
+    ret[0][0] = cos(angle1) * distToCtrPoint;
+    ret[0][1] = sin(angle1) * distToCtrPoint;
+    ret[1][0] = cos(angle2) * distToCtrPoint;
+    ret[1][1] = sin(angle2) * distToCtrPoint;
+    return ret;
+}
+
+
+int[] getPointAtAngle(float angle, int centerx, int centery, int radius) {
+  int[] ret = new int[2];
+  ret[0] = floor(centerx + radius * cos(angle));
+  ret[1] = floor(centery + radius * sin(angle));
+  return ret;
+}
+
+float findK(float angleStart, float angleEnd) {
+   float arc = angleEnd - angleStart;
+
+    // Always choose the smaller arc
+    if (abs(arc) > PI) {
+        arc -= PI * 2;
+        arc %= PI * 2;
+    }
+    return (4 / 3) * tan(arc / 4);
+}
+
+//=========================== INTERACTION HANDLING ==================================
 //===================================================
 void mouseReleased() {
   println("mouse clicked============+");
@@ -286,10 +350,10 @@ class SingleCurve {
     var localy = this.y*RADIUS + adjust[1];
     
     switch (orientation) {
-      case 0: buffer.arc(localx, localy, radius, radius, radians(0), radians(90)); break;
-      case 1: buffer.arc(localx, localy, radius, radius, radians(90), radians(180)); break;
-      case 2: buffer.arc(localx, localy, radius, radius,radians(180), radians(270)); break;
-      case 3: buffer.arc(localx, localy, radius, radius,  radians(-90), radians(0));
+      case 0: bezierArc(buffer, localx, localy, radius, radians(0), radians(90)); break;
+      case 1: bezierArc(buffer, localx, localy, radius, radians(90), radians(180)); break;
+      case 2: bezierArc(buffer, localx, localy, radius, radians(180), radians(270)); break;
+      case 3: bezierArc(buffer, localx, localy, radius,  radians(-90), radians(0));
     }
   }
   
@@ -302,10 +366,10 @@ class SingleCurve {
     
     //println("quadrant: "+ quadrant + ", orientation: " + orientation);
     switch (orientation) {
-      case 0: ebuffer.arc(localx, localy, radius, radius, radians(0), radians(90)); break;
-      case 1: ebuffer.arc(localx, localy, radius, radius, radians(90), radians(180)); break;
-      case 2: ebuffer.arc(localx, localy, radius, radius,radians(180), radians(270)); break;
-      case 3: ebuffer.arc(localx, localy, radius, radius,  radians(-90), radians(0));
+      case 0: bezierArc(ebuffer, localx, localy, radius, radians(0), radians(90)); break;
+      case 1: bezierArc(ebuffer, localx, localy, radius, radians(90), radians(180)); break;
+      case 2: bezierArc(ebuffer, localx, localy, radius,radians(180), radians(270)); break;
+      case 3: bezierArc(ebuffer, localx, localy, radius,  radians(-90), radians(0));
     }
   }
   
