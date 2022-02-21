@@ -7,6 +7,8 @@ import processing.svg.PGraphicsSVG;
 // Press 's' to save the embroidery file. Press space to clear.
 // Press 'i' to insert curve (this is the default mode)
 // Press 'd' to add a line 
+// press 'c' to change to curveless mode (press again to change to placing)
+// prese 'C' to change to curve more mode (press again to change to placing)
 PEmbroiderGraphics E;
 PGraphics offscreenBuffer;
 PGraphics onscreenBuffer;
@@ -20,6 +22,7 @@ int gridrows = 1;
 
 int WHITE = 255;
 int BLACK = 0;
+String MODE = "PLACING"; // also "CURVELESS" "CURVEMORE" 
 
 //===================================================
 void setup() { 
@@ -186,11 +189,11 @@ int[] adjustXY(int orientation, int quadrant) {
   return ret;
 }
 
-void bezierArc(PGraphics buffer, int centerx, int centery,  int radius, float angleStart, float angleEnd) {
+void bezierArc(PGraphics buffer, int centerx, int centery,  int radius, float angleStart, float angleEnd, float curvature) {
     // assuming angleStart and angleEnd are in raians
 
     // Finding the coordinates of the control points in a simplified case where the center of the circle is at [0,0]
-    var relControlPoints = getRelativeControlPoints(angleStart, angleEnd, radius/2);
+    var relControlPoints = getRelativeControlPoints(angleStart, angleEnd, radius/2*curvature);
     var startp = getPointAtAngle(angleStart, centerx, centery, radius/2);
     var endp = getPointAtAngle(angleEnd, centerx, centery, radius/2);
     buffer.bezier(startp[0], startp[1], 
@@ -199,11 +202,11 @@ void bezierArc(PGraphics buffer, int centerx, int centery,  int radius, float an
                    endp[0], endp[1]);
 }
 
-void bezierArc(PEmbroiderGraphics buffer, int centerx, int centery,  int radius, float angleStart, float angleEnd) {
+void bezierArc(PEmbroiderGraphics buffer, int centerx, int centery,  int radius, float angleStart, float angleEnd, float curvature) {
     // assuming angleStart and angleEnd are in raians
 
     // Finding the coordinates of the control points in a simplified case where the center of the circle is at [0,0]
-    var relControlPoints = getRelativeControlPoints(angleStart, angleEnd, radius/2);
+    var relControlPoints = getRelativeControlPoints(angleStart, angleEnd, radius/2*curvature);
     var startp = getPointAtAngle(angleStart, centerx, centery, radius/2);
     var endp = getPointAtAngle(angleEnd, centerx, centery, radius/2);
     buffer.bezier(startp[0], startp[1], 
@@ -213,7 +216,7 @@ void bezierArc(PEmbroiderGraphics buffer, int centerx, int centery,  int radius,
 }
 
 
-float[][] getRelativeControlPoints(float angleStart, float angleEnd, int radius) {
+float[][] getRelativeControlPoints(float angleStart, float angleEnd, float radius) {
     // factor is the commonly reffered parameter K in the articles about arc to cubic bezier approximation 
     float factor = findK(angleStart, angleEnd);
 
@@ -232,7 +235,7 @@ float[][] getRelativeControlPoints(float angleStart, float angleEnd, int radius)
 }
 
 
-int[] getPointAtAngle(float angle, int centerx, int centery, int radius) {
+int[] getPointAtAngle(float angle, int centerx, int centery, float radius) {
   int[] ret = new int[2];
   ret[0] = floor(centerx + radius * cos(angle));
   ret[1] = floor(centery + radius * sin(angle));
@@ -263,12 +266,20 @@ void mouseReleased() {
       mark = new SingleCurve(coords[0], coords[1], coords[2]);
       println("create" + mark);
       marks.put(mark);
-  } else {
+  } else if (MODE == "PLACING") {
     println("rotate\n" + marks);
     if (mark.orientation == 3) marks.delete(mark.x, mark.y, mark.quadrant);
     mark.orientation = (mark.orientation+1)%4;
     println(marks);
-  } 
+  } else if (MODE ==  "CURVELESS") {
+    println("reducing curve") ;
+    mark.curvature -= 0.1;
+    if (mark.curvature < 0) mark.curvature = 1;
+  } else if (MODE == "CURVEMORE") {
+    println("increasing curve");
+    mark.curvature += 0.1;
+    if (mark.curvature > 1) mark.curvature = 0;
+  }
 }
 
 
@@ -307,12 +318,21 @@ void keyPressed() {
   case 't':
   case 'T':
     marks.tile(1, 1, 1, 1, true, true);
+    break;
+  case 'c': 
+    if (MODE == "CURVELESS") MODE = "PLACING";
+    else MODE = "CURVELESS";
+    break;
+  case 'C':
+    if (MODE == "CURVEMORE") MODE = "PLACING";
+    else MODE = "CURVEMORE";
+    break;
   }
 
 }
 
 class SingleCurve {
-  float curvature;
+  public float curvature;
   int radius, x, y;
   public int orientation;
   public int quadrant;
@@ -350,10 +370,10 @@ class SingleCurve {
     var localy = this.y*RADIUS + adjust[1];
     
     switch (orientation) {
-      case 0: bezierArc(buffer, localx, localy, radius, radians(0), radians(90)); break;
-      case 1: bezierArc(buffer, localx, localy, radius, radians(90), radians(180)); break;
-      case 2: bezierArc(buffer, localx, localy, radius, radians(180), radians(270)); break;
-      case 3: bezierArc(buffer, localx, localy, radius,  radians(-90), radians(0));
+      case 0: bezierArc(buffer, localx, localy, radius, radians(0), radians(90), curvature); break;
+      case 1: bezierArc(buffer, localx, localy, radius, radians(90), radians(180), curvature); break;
+      case 2: bezierArc(buffer, localx, localy, radius, radians(180), radians(270), curvature); break;
+      case 3: bezierArc(buffer, localx, localy, radius,  radians(-90), radians(0), curvature);
     }
   }
   
@@ -366,10 +386,10 @@ class SingleCurve {
     
     //println("quadrant: "+ quadrant + ", orientation: " + orientation);
     switch (orientation) {
-      case 0: bezierArc(ebuffer, localx, localy, radius, radians(0), radians(90)); break;
-      case 1: bezierArc(ebuffer, localx, localy, radius, radians(90), radians(180)); break;
-      case 2: bezierArc(ebuffer, localx, localy, radius,radians(180), radians(270)); break;
-      case 3: bezierArc(ebuffer, localx, localy, radius,  radians(-90), radians(0));
+      case 0: bezierArc(ebuffer, localx, localy, radius, radians(0), radians(90), curvature); break;
+      case 1: bezierArc(ebuffer, localx, localy, radius, radians(90), radians(180), curvature); break;
+      case 2: bezierArc(ebuffer, localx, localy, radius,radians(180), radians(270), curvature); break;
+      case 3: bezierArc(ebuffer, localx, localy, radius,  radians(-90), radians(0), curvature);
     }
   }
   
