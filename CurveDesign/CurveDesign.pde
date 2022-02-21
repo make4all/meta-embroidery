@@ -15,6 +15,8 @@ CurveTable marks;
 
 float SQRT3 = sqrt(3);
 int RADIUS = 100;
+int gridcols = 1;
+int gridrows = 1;
 
 int WHITE = 255;
 int BLACK = 0;
@@ -25,21 +27,23 @@ void setup() {
   String svgFilePath = sketchPath("curveDemo" + fileNumber + ".svg");
   //beginRecord(SVG, svgFilePath);
   println(""+width+","+height);
-  E = new PEmbroiderGraphics(this, width, height);
-  basicEmbroiderySettings();
-  offscreenBuffer = createGraphics(width, height, SVG, svgFilePath);
-  offscreenBuffer.beginDraw();
-  offscreenBuffer.stroke(127,0,0);
-  offscreenBuffer.strokeWeight(3);
+  gridcols = floor(width/RADIUS)-1;
+  gridrows = floor(height/RADIUS)-1;
+  println("rows"+gridrows+", cols"+gridcols);
 
-  marks =  new CurveTable(width/RADIUS, height/RADIUS);
+
+  E = new PEmbroiderGraphics(this, width, height);
+  basicEmbroiderySettings(E);
+  offscreenBuffer = createGraphics(width, height, SVG, svgFilePath);
+  basicDrawingSettings(offscreenBuffer);
+  
+  marks =  new CurveTable(gridrows, gridcols);
   marks.addBuffer(E);
   marks.addBuffer(offscreenBuffer);
   
   onscreenBuffer = createGraphics(width, height);
-  onscreenBuffer.beginDraw();
-  onscreenBuffer.stroke(127,0,0);
-  onscreenBuffer.strokeWeight(3);
+  basicDrawingSettings(onscreenBuffer);
+  
   marks.addBuffer(onscreenBuffer);
 
   //noLoop();
@@ -70,7 +74,14 @@ void draw() {
   E.visualize(true, true, true);
 }
   
-void basicEmbroiderySettings() {
+void basicDrawingSettings(PGraphics buffer) {
+  buffer.beginDraw();
+  buffer.stroke(127,0,0);
+  buffer.strokeWeight(3);
+  buffer.noFill();
+}
+
+void basicEmbroiderySettings(PEmbroiderGraphics E) {
     E.stroke(BLACK);  //
     E.strokeWeight(35);  //
     //E.fill(BLACK);
@@ -97,8 +108,8 @@ void basicEmbroiderySettings() {
 void drawGrid() {
   stroke(50);
   
-  for(var row = 0; row <= width/RADIUS; row++) {
-    for(var col = 0; col <= height/RADIUS; col++) {
+  for(var row = 0; row <= gridrows; row++) {
+    for(var col = 0; col <= gridcols; col++) {
       float x =   col*RADIUS;
       float y =   row*RADIUS;
      
@@ -200,14 +211,17 @@ void mouseReleased() {
 //===================================================
 void keyPressed() {
   println("======= Key Pressed " + key);
-  if (key == ' ') {
+  switch (key) {
+    case ' ':
     marks.clear();
     onscreenBuffer = createGraphics(width, height);
     onscreenBuffer.beginDraw();
     onscreenBuffer.stroke(127,0,0);
     onscreenBuffer.strokeWeight(3);
     marks.addBuffer(onscreenBuffer);
-  } else if (key == 's' || key == 'S') { // S to save
+    break;
+  case 's':
+  case 'S': // S to save
     E.optimize(); // slow, but very good and important
     E.printStats(); 
     String outputFilePath = sketchPath("curveDemo" + fileNumber + ".dst");
@@ -225,6 +239,10 @@ void keyPressed() {
     offscreenBuffer = createGraphics(width, height, SVG, svgFilePath); 
     marks.addBuffer(offscreenBuffer);
     offscreenBuffer.beginDraw();
+    break;
+  case 't':
+  case 'T':
+    marks.tile(1, 1, 1, 1, true, true);
   }
 
 }
@@ -253,14 +271,13 @@ class SingleCurve {
   }
   SingleCurve(int x, int y, int quadrant, int orientation, int radius, float curvature) {
     this.curvature = curvature;
-    this.orientation = 0;
+    this.orientation = orientation;
     this.radius = radius;
     this.quadrant = quadrant;
     this.x = x;
     this.y = y;
   }
-  
-  
+ 
   void update(PGraphics buffer) {
     // draw a square onscreen for reference
     //rect(x, y, radius, radius);
@@ -292,14 +309,17 @@ class SingleCurve {
     }
   }
   
+  SingleCurve copy() {
+    return new SingleCurve(this.x, this.y, this.quadrant, this.orientation, this.radius, this.curvature);
+  }
+  
   String toString() {
     return "Curve at " + x + "," + y + ":q" + quadrant + ":o"+orientation;
   }
 }
 
-class CurveTable {
 
-  
+class CurveTable {
   SingleCurve[][][] table;
   int rows; 
   int cols;  
@@ -322,6 +342,44 @@ class CurveTable {
   SingleCurve get(int row, int col, int quadrant) {
     return this.table[quadrant][row][col];
   }
+  
+  
+  void tile(int startx, int starty, int tilewidth, int tileheight, boolean x, boolean y) {
+    println("tile " + startx + "," + starty + "," + tilewidth + "," + tileheight +"," + x + "," + y);
+    println("[" + table.length +"][" + table[0].length +"]");
+    // startx/starty is the grid coordinates of the top left of the tile
+    // width is the width of the tile
+    // height is the height of the tile
+    // x is whether to tile in x direction
+    // y is whether to tile in y direction
+    SingleCurve tile;
+    
+    println(this);
+    
+    // Loop through the grid by tile size in x and y
+    for (int q = 0; q<4;  q++) {
+      for (int i = startx;  i+tilewidth < gridrows; i+=tilewidth) {
+        for (int j = starty;  j+tileheight < gridcols; j+=tileheight) {
+          println("q, i, j" + q + ","+ i + "," + j);
+          for (int s = 0;  s<=tilewidth; s++) {
+            for (int t = 0; t<=tileheight; t++ ) {
+              tile = table[q][s+startx][t+starty];
+              //println(tile);
+              if (tile != null) {
+                 tile = tile.copy();
+                 tile.x = t+j;
+                 tile.y = i+s;
+                 //println("q, s, t" + q + "," + s + "," + t + " to: " + (i+s) + "," + (j+t) + tile);
+                 table[q][i+s][j+t] = tile;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  ////// ////// ////// //////  HELPERS ////// ////// ////// ////// ////// 
   
   void put(SingleCurve curve) {
     this.table[curve.quadrant][curve.x][curve.y] = curve;
