@@ -1,8 +1,6 @@
 import processing.embroider.*;
 import processing.svg.PGraphicsSVG;
 
-// where I left things: Was working (committed), now trying to be able to select quadrant and orientation separately
-
 // Curve Embroidery drawer for the PEmbroider library for Processing!
 // Press 's' to save the embroidery file. Press space to clear.
 // Press 'i' to insert curve (this is the default mode)
@@ -15,7 +13,6 @@ PGraphics onscreenBuffer;
 int fileNumber = 1;
 CurveTable marks;
 
-float SQRT3 = sqrt(3);
 int RADIUS = 100;
 int gridcols = 1;
 int gridrows = 1;
@@ -27,25 +24,17 @@ String MODE = "PLACING"; // also "CURVELESS" "CURVEMORE"
 //===================================================
 void setup() { 
   size(600,900);
-  String svgFilePath = sketchPath("curveDemo" + fileNumber + ".svg");
-  //beginRecord(SVG, svgFilePath);
-  println(""+width+","+height);
   gridcols = floor(width/RADIUS)-1;
   gridrows = floor(height/RADIUS)-1;
   println("rows"+gridrows+", cols"+gridcols);
 
-
   E = new PEmbroiderGraphics(this, width, height);
   basicEmbroiderySettings(E);
-  offscreenBuffer = createGraphics(width, height, SVG, svgFilePath);
-  basicDrawingSettings(offscreenBuffer);
   
   marks =  new CurveTable(gridrows, gridcols);
-  marks.addBuffer(E);
-  marks.addBuffer(offscreenBuffer);
+  //marks.addBuffer(E);
   
   onscreenBuffer = createGraphics(width, height);
-  basicDrawingSettings(onscreenBuffer);
   
   marks.addBuffer(onscreenBuffer);
 
@@ -60,16 +49,20 @@ void draw() {
   drawGrid();
   E.beginDraw(); 
   E.clear();
+  marks.removeBuffer(offscreenBuffer);
+  String svgFilePath = sketchPath("curveDemo" + fileNumber + ".svg");
+  offscreenBuffer = createGraphics(width, height, SVG, svgFilePath);
+  marks.addBuffer(offscreenBuffer);
   offscreenBuffer.beginDraw();
-  //offscreenBuffer.clear();
+  basicDrawingSettings(offscreenBuffer);
   onscreenBuffer.beginDraw();
+  basicDrawingSettings(onscreenBuffer);
   onscreenBuffer.clear();
-  
+
   //E.beginCull();
   E.CULL_SPACING = 5;
   
   marks.updateAll();
-  offscreenBuffer.endDraw();
   onscreenBuffer.endDraw();
   
   image(onscreenBuffer,0,0);
@@ -78,15 +71,14 @@ void draw() {
 }
   
 void basicDrawingSettings(PGraphics buffer) {
-  buffer.beginDraw();
   buffer.stroke(127,0,0);
-  buffer.strokeWeight(3);
+  buffer.strokeWeight(1);
   buffer.noFill();
 }
 
 void basicEmbroiderySettings(PEmbroiderGraphics E) {
     E.stroke(BLACK);  //
-    E.strokeWeight(35);  //
+    E.strokeWeight(10);  //
     //E.fill(BLACK);
     E.fill(0, 0, 255);
     E.strokeSpacing(3.0);  
