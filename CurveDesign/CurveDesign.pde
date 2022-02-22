@@ -2,28 +2,23 @@ import processing.embroider.*;
 import processing.svg.PGraphicsSVG;
 
 // Curve Embroidery drawer for the PEmbroider library for Processing!
-// Press 's' to save the embroidery file. Press space to clear.
-// Press 'i' to insert curve (this is the default mode)
-// Press 'd' to add a line 
-// press 'c' to change to curveless mode (press again to change to placing)
-// prese 'C' to change to curve more mode (press again to change to placing)
 PEmbroiderGraphics E;
 PGraphics offscreenBuffer;
 PGraphics onscreenBuffer;
 int fileNumber = 1;
 CurveTable marks;
 
-int RADIUS = 100;
+final int RADIUS = 50;
 int gridcols = 1;
 int gridrows = 1;
 
-int WHITE = 255;
-int BLACK = 0;
+final int WHITE = 255;
+final int BLACK = 0;
 String MODE = "PLACING"; // also "CURVELESS" "CURVEMORE" 
 
 //===================================================
 void setup() { 
-  size(600,900);
+  size(1000,1000);
   gridcols = floor(width/RADIUS)-1;
   gridrows = floor(height/RADIUS)-1;
   println("rows"+gridrows+", cols"+gridcols);
@@ -32,14 +27,21 @@ void setup() {
   basicEmbroiderySettings(E);
   
   marks =  new CurveTable(gridrows, gridcols);
-  //marks.addBuffer(E);
+  //marks.addBuffer(E); // uncomment to show embroidering path
   
   onscreenBuffer = createGraphics(width, height);
   
   marks.addBuffer(onscreenBuffer);
 
   //noLoop();
-  println("setup done");
+  String out = "Controls:\n" +
+                "s: Save embroidery file\n" +
+                "i: Insert curve mode\n" +
+                "t: Tile across plane\n" + 
+                "c: Curve less mode\n" +
+                "C: Curve more mode\n" +
+                "[space]: Clear grid";
+  println(out);
 }
 
 //===================================================
@@ -102,7 +104,13 @@ void basicEmbroiderySettings(PEmbroiderGraphics E) {
 
 void drawGrid() {
   stroke(50);
+  // Top left corner is different color to indicate where to draw
+  fill(245);
+  stroke(BLACK);
+  rect(RADIUS/2, RADIUS/2, RADIUS, RADIUS);
+  noFill();
   
+  // Grid lines
   for(var row = 0; row <= gridrows; row++) {
     for(var col = 0; col <= gridcols; col++) {
       float x =   col*RADIUS;
@@ -251,7 +259,16 @@ void mouseReleased() {
   println("mouse clicked============+");
   // Create a new current mark
   var coords = findNearest(mouseX, mouseY);
-  var mark = marks.get(coords[0], coords[1], coords[2]);
+  int row = coords[0];
+  int col = coords[1];
+  int quad = coords[2];
+  var mark = marks.get(row, col, quad);
+
+  // We only want to draw in the upper left corner
+  if (row > 1 || col > 1)
+  {
+    return;
+  }
 
   if (mark == null) {
       print(coords[2]);
@@ -272,6 +289,7 @@ void mouseReleased() {
     mark.curvature += 0.1;
     if (mark.curvature > 1) mark.curvature = 0;
   }
+  marks.tile(1,1,1,1,true,true);
 }
 
 

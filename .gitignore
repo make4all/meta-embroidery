@@ -1,3 +1,4 @@
 *.dst
 *.tif
 *.vp3
+.vscode/
