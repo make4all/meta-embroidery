@@ -3,8 +3,7 @@ import processing.svg.PGraphicsSVG;
 
 // Curve Embroidery drawer for the PEmbroider library for Processing!
 // Press 's' to save the embroidery file. Press space to clear.
-// Press 'i' to insert curve (this is the default mode)
-// Press 'd' to add a line 
+// Press 't' to tile
 // press 'c' to change to curveless mode (press again to change to placing)
 // prese 'C' to change to curve more mode (press again to change to placing)
 PEmbroiderGraphics E;
