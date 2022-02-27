@@ -452,7 +452,7 @@ class CurveTable {
   CurveTable(int rows, int cols) {
     this.rows = rows;
     this.cols = cols;
-    this.table = new SingleCurve[quadrants][rows][cols];
+    this.table = new SingleCurve[rows][cols][quadrants];
 
     this.buffers = new ArrayList<PGraphics>();
     this.ebuffers = new ArrayList<PEmbroiderGraphics>();
@@ -461,7 +461,7 @@ class CurveTable {
   // if row = 0, items at col 0->cols-1; 
   // if row = 0 items at cols cols->2*cols-1, etc
   SingleCurve get(int row, int col, int quadrant) {
-    return this.table[quadrant][row][col];
+    return this.table[row][col][quadrant];
   }
   
   
@@ -481,7 +481,7 @@ class CurveTable {
     for (int q = 0; q<4;  q++) {
       for (int s=startRow; s<=startRow+rowDist; s++) {
         for (int t=startCol; t<=startCol+colDist; t++) {
-          tile = table[q][s][t];
+          tile = table[s][t][q];
           if (tile != null) {
             println("copying tile: " + tile);
             // loop through the table, starting at a copy of the tile located at (0,0) and moving by tile size
@@ -492,7 +492,7 @@ class CurveTable {
                    tile = tile.copy();
                    tile.col = gridcol;
                    tile.row = gridrow;
-                   table[q][gridrow][gridcol] = tile;
+                   table[gridrow][gridcol][q] = tile;
                 }
               }
             }
@@ -505,11 +505,11 @@ class CurveTable {
   ////// ////// ////// //////  HELPERS ////// ////// ////// ////// ////// 
   
   void put(SingleCurve curve) {
-    this.table[curve.quadrant][curve.row][curve.col] = curve;
+    this.table[curve.row][curve.col][curve.quadrant] = curve;
   }
   
   void delete(int row, int col, int quadrant) {
-    this.table[quadrant][row][col] = null;
+    this.table[row][col][quadrant] = null;
   }
   
   void addBuffer(PGraphics buffer) {
@@ -527,19 +527,25 @@ class CurveTable {
   
   void updateAll() {
     for (PGraphics buffer : buffers) {
+      //buffer.beginShape();
       updateAll(buffer);
+      //buffer.endShape();
     }
     for (PEmbroiderGraphics ebuffer : ebuffers) {
+      //ebuffer.beginShape();
       updateAll(ebuffer);
+      //ebuffer.endShape();
     }
     
   }
   
   void updateAll(PEmbroiderGraphics ebuffer) {
     //println("======= Update All Onscreen " + this);
-    for (SingleCurve[][] rows : this.table) {
-      for (SingleCurve[] col : rows) {
-        for (SingleCurve curve : col) {
+    ebuffer.beginShape();
+    SingleCurve prev = null;
+    for (SingleCurve[][] col : this.table) {
+      for (SingleCurve[] quadrant : col) {
+        for (SingleCurve curve : quadrant) {
           if (curve != null) {
             //System.out.println("curve at:" + curve);
             curve.update(ebuffer);
@@ -547,13 +553,16 @@ class CurveTable {
         }
       }
     }
+    ebuffer.endShape();
   }
   
   void updateAll(PGraphics buffer) {
+   buffer.beginShape();
+
     //println("======= Update All Offscreen " + this);
-    for (SingleCurve[][] rows : this.table) {
-      for (SingleCurve[] col : rows) {
-        for (SingleCurve curve : col) {
+    for (SingleCurve[][] col : this.table) {
+      for (SingleCurve[] quadrant : col) {
+        for (SingleCurve curve : quadrant) {
           if (curve != null) {
             //System.out.println("curve at:" + curve);
             curve.update(buffer);
@@ -561,21 +570,22 @@ class CurveTable {
         }
       }
     }
+    buffer.endShape();
   }
   
   void clear() {
-    this.table = new SingleCurve[quadrants][rows][cols];
+    this.table = new SingleCurve[rows][cols][quadrants];
   }
   
   String toString() {
     String ret = "";
     int i = 0;
-    for (SingleCurve[][] rows : this.table) {
+    for (SingleCurve[][] cols : this.table) {
       ret += "q"+i + ":[";
       i += 1;
-      for (SingleCurve[] col : rows) {
+      for (SingleCurve[] quadrants : cols) {
         ret += "[";
-        for (SingleCurve curve : col) {
+        for (SingleCurve curve : quadrants) {
           if (curve != null) {
             //System.out.println("curve at:" + curve);
             ret += curve + ",";
@@ -600,7 +610,7 @@ class CurveTable {
     for (int q = 0; q < quadrants; q++) {
       for (int row = rowStart; row <= rowEnd; row++) {
         for (int col = colStart; col <= colEnd; col++) {
-          SingleCurve cell = table[q][row][col];
+          SingleCurve cell = table[row][col][q];
           if (cell != null) {
             JSONObject cell_json = cell.toJSON();
             cells.setJSONObject(i, cell_json);
@@ -630,7 +640,7 @@ class CurveTable {
     for (int i = 0; i<=cells.size(); i++) {
       var cell = curveFromJSON(cells.getJSONObject(i));
       if (interfaceBuffer.insideTiling(cell.row, cell.col)) {
-        table[cell.quadrant][cell.row][cell.col] = cell;
+        table[cell.row][cell.col][cell.quadrant] = cell;
       } else println ("ERROR JSON had items outside tiling region specified in JSON object");
     }
   }
