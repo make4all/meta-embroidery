@@ -12,7 +12,8 @@ int fileNumber = 1;
 CurveTable marks;
 
 int interfaceWidth = 200;
-int RADIUS = 50;
+int RADIUS = 40;
+float SQRT3 = sqrt(3);
 int gridcols = 1;
 int gridrows = 1;
 
@@ -25,7 +26,15 @@ String out = "Controls:\n" +
                 "c: Curve less mode\n" +
                 "C: Curve more mode\n" +
                 "[space]: Clear grid";               
-                
+final String TILE_REGION = "Tile Region";
+final String FREE_ENTRY = "Free Entry";
+final String TILE_REGION_TO_REGION = "Tile Region to Region";
+
+final String THREE_WAY = "Three Way Symmetry";
+final String FOUR_WAY = "Four Way Symmetry";
+final String SIX_WAY = "Six Way Symmetry";
+final String EIGHT_WAY = "Eight Way Symmetry";
+             
 //===================================================
 void setup() { 
   size(600,800);
@@ -114,30 +123,60 @@ void basicEmbroiderySettings(PEmbroiderGraphics E) {
     randomSeed(5);
 }
 
+float[] toCoords(int row, int col) {
+  float[] ret = new float[2];
+  switch(interfaceBuffer.symmetry()) {
+    case FOUR_WAY:
+    case EIGHT_WAY:
+      ret[0] = col*RADIUS;
+      ret[1] = row*RADIUS;
+      break;
+    case THREE_WAY:
+    case SIX_WAY:
+      ret[0] = col*RADIUS*3/2;
+      ret[1] = row*SQRT3*RADIUS - RADIUS*SQRT3/(1+col%2);
+  }
+  return ret;
+}
+
 void drawGrid(int xOffset, int yOffset) {
   stroke(50);
 
   pushMatrix();
   translate(xOffset, yOffset);
-  if (interfaceBuffer.mode() == interfaceBuffer.TILE_REGION) {
+  
+  if (interfaceBuffer.mode() == TILE_REGION) {
     // Top left corner is different color to indicate where to draw
     fill(245);
     stroke(BLACK);
-    rect(RADIUS*interfaceBuffer.colStart - RADIUS/2 ,  RADIUS*interfaceBuffer.rowStart - RADIUS/2 , RADIUS*interfaceBuffer.colDist, RADIUS*interfaceBuffer.rowDist);
+    var starts = toCoords(interfaceBuffer.rowStart, interfaceBuffer.colStart);
+    rect(starts[0] - RADIUS/2 ,  starts[1] - RADIUS/2 , RADIUS*interfaceBuffer.colDist, RADIUS*interfaceBuffer.rowDist);
     noFill();
   }
   
   // Grid lines
   for(var row = 0; row <= gridrows; row++) {
     for(var col = 0; col <= gridcols; col++) {
-      float x =   col*RADIUS ;
-      float y =   row*RADIUS ;
-     
-      stroke(BLACK);
-      line(x, 0, x, height);
-      line(0, y, width, y);
-      stroke(127,0,0);
-      circle(x, y, 2);
+      var coords = toCoords(row, col);
+      switch (interfaceBuffer.symmetry()) {
+        case FOUR_WAY:
+        case EIGHT_WAY:
+          stroke(BLACK);
+          line(coords[0], 0, coords[0], height);
+          line(0, coords[1], width, coords[1]);
+          stroke(127,0,0);
+          circle(coords[0], coords[1], 2);
+          break;
+        case THREE_WAY:
+        case SIX_WAY:
+          beginShape();
+          for (float theta = 0; theta < TWO_PI; theta += TWO_PI/6) {
+               vertex(coords[0]+RADIUS*cos(theta), coords[1]+RADIUS*sin(theta));
+          }
+          endShape();
+          stroke(127,0,0);
+          circle(coords[0], coords[1], 2);
+      }
     }
   }
   popMatrix();
@@ -292,7 +331,7 @@ void mouseReleased() {
   int quad = coords[2];
   
   if (row < 0 || col < 0) return;
-  if ((interfaceBuffer.mode() == interfaceBuffer.TILE_REGION) && 
+  if ((interfaceBuffer.mode() == TILE_REGION) && 
        !interfaceBuffer.insideTiling(row, col)) return;
   
   var mark = marks.get(row, col, quad);
@@ -319,7 +358,7 @@ void mouseReleased() {
       if (mark.curvature > 2) mark.curvature = -2;
     }
   }
-  if (interfaceBuffer.mode() == interfaceBuffer.TILE_REGION) marks.tile(interfaceBuffer.rowStart,interfaceBuffer.rowDist,interfaceBuffer.colStart,interfaceBuffer.colDist,true,true);
+  if (interfaceBuffer.mode() == TILE_REGION) marks.tile(interfaceBuffer.rowStart,interfaceBuffer.rowDist,interfaceBuffer.colStart,interfaceBuffer.colDist,true,true);
 }
 
 
@@ -418,7 +457,7 @@ class SingleCurve {
          ret[1] = radians(0);
          return ret;
     } 
-    return null;
+    return ret;
   }
   
   void update(PGraphics buffer) {
@@ -650,7 +689,7 @@ class CurveTable {
   
   public void tileFromJSON(JSONArray cells, int rowStart, int rowEnd, int colStart, int colEnd) {
     interfaceBuffer.setTiling(rowStart, rowEnd, colStart, colEnd);
-    interfaceBuffer.setMode(interfaceBuffer.TILE_REGION);
+    interfaceBuffer.setMode(TILE_REGION);
     for (int i = 0; i<=cells.size(); i++) {
       var cell = curveFromJSON(cells.getJSONObject(i));
       if (interfaceBuffer.insideTiling(cell.row, cell.col)) {
@@ -666,21 +705,13 @@ class Interface extends PGraphics {
   Group settings;
   
   RadioButton mode;
-  String TILE_REGION = "Tile Region";
-  String FREE_ENTRY = "Free Entry";
-  String TILE_REGION_TO_REGION = "Tile Region to Region";
-  
-  RadioButton symmetry;
-  String THREE_WAY = "Three Way Symmetry";
-  String FOUR_WAY = "Four Way Symmetry";
-  String SIX_WAY = "Six Way Symmetry";
-  String EIGHT_WAY = "Eight Way Symmetry";
 
+  RadioButton symmetry;
   
   RadioButton click;
-  String ROTATE = "Place and Rotate";
-  String CURVEIN = "Change Curve Inward";
-  String CURVEOUT = "Change Curve Outward";
+  final String ROTATE = "Place and Rotate";
+  final String CURVEIN = "Change Curve Inward";
+  final String CURVEOUT = "Change Curve Outward";
 
   Group tiling;
   MyRange col_range;
