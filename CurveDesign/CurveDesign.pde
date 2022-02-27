@@ -657,7 +657,7 @@ class CurveTable {
     if (symmetry == interfaceBuffer.EIGHT_WAY) quadrants = 8;
     if (quadrants == 4 || quadrants == 8) RADIUS = 60;
     else RADIUS = 30;
-     cols = round((width-interfaceWidth)/RADIUS)+1;
+    cols = round((width-interfaceWidth)/RADIUS)+1;
     rows = round(height/RADIUS)+1;
       
     for (SingleCurve curve : curves) {
@@ -666,6 +666,7 @@ class CurveTable {
     }
    
     this.table = new SingleCurve[rows][cols][quadrants];
+    this.curves = new ArrayList<SingleCurve>();
     println("made table rows: " + rows + ", cols: " + cols + ", quadrants " + quadrants);
 
   }
