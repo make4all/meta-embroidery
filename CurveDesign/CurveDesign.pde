@@ -356,7 +356,7 @@ void mouseReleased() {
   } else {
     var current = interfaceBuffer.click();
     if (current == interfaceBuffer.ROTATE) {
-      //println("rotate\n" + marks);
+      println("rotate\n" + marks);
       if (mark.orientation == 3) marks.delete(mark.row, mark.col, mark.quadrant);
       mark.orientation = (mark.orientation+1)%4;
       //println(marks);
@@ -570,9 +570,9 @@ class CurveTable {
                    tile = tile.copy();
                    tile.col = gridcol;
                    tile.row = gridrow;
-                   table[gridrow][gridcol][q] = tile;
-                   curves.add(tile);
-                }
+                   delete(gridrow, gridcol, q);
+                   put(tile);
+                } 
               }
             }
           }
@@ -590,8 +590,11 @@ class CurveTable {
   
   void delete(int row, int col, int quadrant) {
     var curve = this.table[row][col][quadrant];
+    if (curve == null) return;
     this.table[row][col][quadrant] = null;
+    println("curves: " + curves.size());
     curves.remove(curve);
+    println("curves: " + curves.size());
     curve.clear();
   }
   
