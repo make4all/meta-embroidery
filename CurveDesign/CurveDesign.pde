@@ -133,8 +133,8 @@ float[] toCoords(int row, int col) {
       break;
     case THREE_WAY:
     case SIX_WAY:
-      ret[0] = col*RADIUS*3/2;
-      ret[1] = row*SQRT3*RADIUS - RADIUS*SQRT3/(1+col%2);
+      ret[0] = col*(RADIUS/2)*3/2;
+      ret[1] = row*SQRT3*(RADIUS/2) - (RADIUS/2)*SQRT3/(1+col%2);
   }
   return ret;
 }
@@ -171,7 +171,7 @@ void drawGrid(int xOffset, int yOffset) {
         case SIX_WAY:
           beginShape();
           for (float theta = 0; theta < TWO_PI; theta += TWO_PI/6) {
-               vertex(coords[0]+RADIUS*cos(theta), coords[1]+RADIUS*sin(theta));
+               vertex(coords[0]+(RADIUS/2)*cos(theta), coords[1]+(RADIUS/2)*sin(theta));
           }
           endShape();
           stroke(127,0,0);
