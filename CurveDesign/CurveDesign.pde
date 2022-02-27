@@ -388,35 +388,49 @@ class SingleCurve {
     this.col = col;
   }
  
-  void update(PGraphics buffer) {
+  int[] localCoords() {
     // draw a square onscreen for reference
     //rect(x, y, radius, radius);
     var adjust = adjustXY(orientation, quadrant);
     var localx = this.col*RADIUS + adjust[0];
     var localy = this.row*RADIUS + adjust[1];
-    
+    int[] ret = {localx, localy};
+    return ret;
+  }
+  
+  float[] orientationToRadians() {
+    float[] ret = new float[2];
     switch (orientation) {
-      case 0: bezierArc(buffer, localx, localy, radius, radians(0), radians(90), curvature); break;
-      case 1: bezierArc(buffer, localx, localy, radius, radians(90), radians(180), curvature); break;
-      case 2: bezierArc(buffer, localx, localy, radius, radians(180), radians(270), curvature); break;
-      case 3: bezierArc(buffer, localx, localy, radius,  radians(-90), radians(0), curvature);
-    }
+      case 0: 
+         ret[0] = radians(0);
+         ret[1] = radians(90);
+         return ret;
+      case 1:
+         ret[0] = radians(90);
+         ret[1] = radians(180);
+         return ret;
+      case 2: 
+         ret[0] = radians(180);
+         ret[1] = radians(270);
+         return ret;
+      case 3: 
+         ret[0] = radians(-90);
+         ret[1] = radians(0);
+         return ret;
+    } 
+    return null;
+  }
+  
+  void update(PGraphics buffer) {
+    int[] coords = localCoords();
+    float[] angles = orientationToRadians();
+    bezierArc(buffer, coords[0], coords[1], radius, angles[0], angles[1], curvature); 
   }
   
   void update(PEmbroiderGraphics ebuffer) {
-    //println("drawing pgraphic for: " + this);
-    //rect(x, y, radius, radius);
-    var adjust = adjustXY(orientation, quadrant);
-    var localx = this.col*RADIUS + adjust[0];
-    var localy = this.row*RADIUS + adjust[1];
-    
-    //println("quadrant: "+ quadrant + ", orientation: " + orientation);
-    switch (orientation) {
-      case 0: bezierArc(ebuffer, localx, localy, radius, radians(0), radians(90), curvature); break;
-      case 1: bezierArc(ebuffer, localx, localy, radius, radians(90), radians(180), curvature); break;
-      case 2: bezierArc(ebuffer, localx, localy, radius,radians(180), radians(270), curvature); break;
-      case 3: bezierArc(ebuffer, localx, localy, radius,  radians(-90), radians(0), curvature);
-    }
+    int[] coords = localCoords();
+    float[] angles = orientationToRadians();
+    bezierArc(ebuffer, coords[0], coords[1], radius, angles[0], angles[1], curvature); 
   }
   
   SingleCurve copy() {
@@ -657,9 +671,11 @@ class Interface extends PGraphics {
   String TILE_REGION_TO_REGION = "Tile Region to Region";
   
   RadioButton symmetry;
-  String FOUR_WAY = "Four or Eight Way Symmetry";
-  String THREE_WAY = "Three or Six Way Symmetry";
-  
+  String THREE_WAY = "Three Way Symmetry";
+  String FOUR_WAY = "Four Way Symmetry";
+  String SIX_WAY = "Six Way Symmetry";
+  String EIGHT_WAY = "Eight Way Symmetry";
+
   
   RadioButton click;
   String ROTATE = "Place and Rotate";
@@ -718,16 +734,18 @@ class Interface extends PGraphics {
     symmetry.setGroup(settings);
     symmetry.setPosition(0, 80);
     symmetry.setItemHeight(ITEM_HEIGHT);
-    symmetry.addItem(FOUR_WAY, 0);
+    symmetry.addItem(THREE_WAY, 0);
+    symmetry.addItem(FOUR_WAY, 1);
     symmetry.getItem(FOUR_WAY).setValue(true);
-    symmetry.addItem(THREE_WAY, 1);
+    symmetry.addItem(SIX_WAY, 2);
+    symmetry.addItem(EIGHT_WAY, 3);
     symmetry.setColorLabels(BLACK);
 
     // set up click mode as rotation or curve modification
     // set up the radio buttons for tiling mode
     click = cp5.addRadioButton("ClickMode");
     click.setGroup(settings);
-    click.setPosition(0, 140);
+    click.setPosition(0, 180);
     click.setItemHeight(ITEM_HEIGHT);
     click.addItem(ROTATE, 0);
     click.getItem(ROTATE).setValue(true);
@@ -735,7 +753,7 @@ class Interface extends PGraphics {
     click.addItem(CURVEOUT, 2);
     click.setColorLabels(BLACK);
     
-    tiling = cp5.addGroup("Tiling", INSET, 250);
+    tiling = cp5.addGroup("Tiling", INSET, 290);
     col_range = new MyRange(cp5, "Column Start and End ", true);
     col_range.setGroup(tiling);
     col_range.setSize(interfaceWidth-INSET*2, ITEM_HEIGHT);
