@@ -129,46 +129,41 @@ int[] toGrid(int x, int y) {
   // translate
   x = x - interfaceWidth;
   int[] ret = new int[3];
-  
-  // won't need these once I fix the angle calculation
-  int xfloor = floor(x/marks.RADIUS);
-  int yfloor = floor(y/marks.RADIUS);ret[2] = 0; // quadrant
-    
+  println("x, y" + x + "," + y);
   switch(marks.quadrants) {
     case 4:
     case 8:
-      x = x + marks.RADIUS/2;
-      y = y + marks.RADIUS/2;
-      ret[1] = floor(x / marks.RADIUS); // column
-      ret[0] = floor(y / marks.RADIUS); // row
+      ret[1] = floor((x + marks.RADIUS/2)/ marks.RADIUS); // column
+      ret[0] = floor((y + marks.RADIUS/2)/ marks.RADIUS); // row
       break;
     case 3: 
     case 6:
       ret[0] = (x+marks.RADIUS/2)%(marks.RADIUS*3/2);
       ret[1] = floor(y%(marks.RADIUS*SQRT3));
-      ret[0] = x - ret[0]+marks.RADIUS/2;
-      ret[1] = floor(y - ret[1]+marks.RADIUS*SQRT3/2);
+      //ret[0] = x - ret[0]+marks.RADIUS/2;
+      //ret[1] = floor(y - ret[1]+marks.RADIUS*SQRT3/2);
       if (ret[0]%marks.RADIUS==0) ret[1] = floor(ret[1] - marks.RADIUS*SQRT3/2);
       break;
   }
   
-    // now find the quadrant 
-    // should do the following:
-    // 1) draw a line through x, y from the center of the circle (tocoords(row, col))
-    // 2) intersect that line with a circle of radius 1?
-    // 3) calculate the angle of that line
-    // 4) divide 360 by num quadrants and figure out which quadrant that line is in (I think)
-    
-    
-    println("x/y"+x+","+y + ","+ret[0]+","+ret[1] + "floors: " + xfloor + "," + yfloor);
-    if (yfloor == ret[0] && xfloor == ret[1]) ret[2] = 0;
-    else if (yfloor < ret[0] && xfloor == ret[1]) ret[2] = 3;
-    else if (yfloor == ret[0] && xfloor >= ret[1]) ret[2] = 2;
-    else if (yfloor >= ret[0] && xfloor == ret[1]) ret[2] = 1;
-    else if (yfloor < ret[0] && xfloor < ret[1]) ret[2] = 2;
-    else if (yfloor == ret[0] && xfloor <= ret[1]) ret[2] = 1;
-    else print("unknown config");
-    return ret;
+  // now find the quadrant 
+  // should do the following:
+  // origin to 0,0
+  var translate = toCoords(ret[0], ret[1]);
+  println(translate);
+  x = (int) (x - translate[0]);
+  y = (int) (y - translate[1]);
+  println("x, y" + x + "," + y);
+  var deg = atan2(x, y);
+  if (deg < 0) deg = 2*PI + deg;
+  var arc = (2*PI)/marks.quadrants;
+  var quadrant = round( arc*.5 + deg/arc)%marks.quadrants;
+  
+  println("deg " + atan2(x, y)*180/PI  + "," + deg*180/PI + " arc " + arc*180/PI + " quadrant " + quadrant);
+
+  ret[2] = quadrant;
+  println(ret);
+  return ret;
  }
 
 void drawGrid(int xOffset, int yOffset) {
@@ -219,44 +214,292 @@ void drawGrid(int xOffset, int yOffset) {
  
  
 //===============================    HELPERS ===============================
+  public SingleCurve curveFromJSON(JSONObject json) {
+    if (json == null) return null;
+    return new SingleCurve(json.getInt("row"), json.getInt("col"), json.getInt("quadrant"), json.getInt("orientation"), json.getFloat("curvature"));
+}
+//=========================== INTERACTION HANDLING ==================================
+//===================================================
 
+void mouseReleased() {
+  println("mouse clicked============+");
+
+  // Create a new current mark
+  var coords = toGrid(mouseX, mouseY);
+  int row = coords[0];
+  int col = coords[1];
+  int quad = coords[2];
+  
+  if (row < 0 || col < 0) return;
+  if ((interfaceBuffer.mode() == interfaceBuffer.TILE_REGION) && 
+       !interfaceBuffer.insideTiling(row, col)) return;
+  
+  println("row " + row + ", col" + col + "quard: " + quad);
+  var mark = marks.get(row, col, quad);
+
+  if (mark == null) {
+      //print(coords[2]);
+      mark = new SingleCurve(coords[0], coords[1], coords[2]);
+      //println("create" + mark);
+      marks.put(mark);
+  } else {
+    var current = interfaceBuffer.click();
+    if (current == interfaceBuffer.ROTATE) {
+      //println("rotate\n" + marks);
+      println(mark);
+      if (mark.orientation() == 1) marks.delete(mark.row(), mark.col(), mark.quadrant());
+      mark.orientation(mark.orientation+1);
+      println(mark);
+
+      //println(marks);
+    } else if (current == interfaceBuffer.CURVEIN) {
+      //println("reducing curve") ;
+      mark.curvature(mark.curvature() - 0.1);
+      if (mark.curvature() < -2) mark.curvature(2);
+   } else {
+      //println("increasing curve");
+      mark.curvature(mark.curvature() + 0.1);
+      if (mark.curvature() > 2) mark.curvature(-2);
+    }
+  }
+  if (interfaceBuffer.mode() == interfaceBuffer.TILE_REGION) marks.tile(interfaceBuffer.rowStart,interfaceBuffer.rowDist,interfaceBuffer.colStart,interfaceBuffer.colDist,true,true);
+}
+
+
+
+void controlEvent(ControlEvent theEvent) {
+  if (interfaceBuffer != null)  interfaceBuffer.controlEvent(theEvent);
+}
+
+
+//===================================================
+void keyPressed() {
+  println("======= Key Pressed " + key);
+  switch (key) {
+    case ' ':
+    marks.clear();
+    onscreenBuffer = createGraphics(width, height);
+    onscreenBuffer.beginDraw();
+    onscreenBuffer.stroke(127,0,0);
+    onscreenBuffer.strokeWeight(3);
+    marks.addBuffer(onscreenBuffer);
+    break;
+  case 's':
+  case 'S': // S to save
+    interfaceBuffer.save();
+    break;
+  case 'c':
+  case 'C':
+    println("changing curvature");
+    var current = interfaceBuffer.click();
+    if (current == interfaceBuffer.ROTATE) interfaceBuffer.setClick(interfaceBuffer.CURVEIN);
+    else if (current == interfaceBuffer.CURVEIN) interfaceBuffer.setClick(interfaceBuffer.CURVEOUT);
+    else interfaceBuffer.setClick(interfaceBuffer.ROTATE);
+    break;
+  }
+
+}
+
+class SingleCurve {
+  private float curvature;
+  public float curvature() { return curvature;}
+  public void curvature(float curvature) {this.curvature = curvature; updateCoords(); }
+  
+  private int row, col;
+  public int row() { return row;}
+  public void row(int row) {this.row = row; updateCoords(); }
+  public int col() { return col;}
+  public void col(int col) {this.col = col; updateCoords(); }
+  
+  private int orientation;
+  public int orientation() { return orientation;}
+  public void orientation(int orientation) {this.orientation = (orientation == 2) ? 0 : orientation; updateCoords(); }
+  
+  private int quadrant;
+  public int quadrant() { return quadrant;}
+  public void quadrant(int quadrant) {this.quadrant = quadrant; updateCoords(); }
+  
+  ArrayList<SingleCurve> neighbors = new ArrayList<SingleCurve>(); 
+  int[] localCoords = new int[4];
+  
+  // quadrant 0 from 0 t PI/2. 1 is the next quarter, 
+  // 2 is the next, and 3 is the final quarter of a circle
+  SingleCurve(int row, int col) {
+    this(row, col, 0, 0);
+  }
+  
+  SingleCurve(int row, int col, int quadrant) {
+    this(row, col, quadrant, 0, 1);
+  }
+  
+  SingleCurve(int row, int col, int quadrant, int orientation) {
+    this(row, col, quadrant, orientation, 1);
+  }
+  
+  SingleCurve(int row, int col, int quadrant, int orientation,  float curvature) {
+    this.curvature = curvature;
+    this.orientation = orientation;
+    this.quadrant = quadrant;
+    this.row = row;
+    this.col = col;
+    updateCoords();
+  }
+ 
+  void clear() {
+    neighbors = new ArrayList<SingleCurve>();
+  }
+  
+  void updateCoords() {
+    var adjust = adjustXY(orientation, quadrant);
+    if (orientation == 1) {
+      this.localCoords[0] = this.col*marks.RADIUS;
+      this.localCoords[1] = this.row*marks.RADIUS;
+      this.localCoords[2] = this.col*marks.RADIUS + adjust[0];
+      this.localCoords[3] = this.row*marks.RADIUS + adjust[1];
+    } else {
+      this.localCoords[0] = this.col*marks.RADIUS;
+      this.localCoords[1] = this.row*marks.RADIUS + adjust[1];
+      this.localCoords[2] = this.col*marks.RADIUS + adjust[0];
+      this.localCoords[3] = this.row*marks.RADIUS;
+    }
+  }
+  
+  int[] localCoords() {
+    return localCoords;
+  }
+  
+  //float[] orientationToRadians() {
+  //  float[] ret = new float[2];
+  //  switch (orientation) {
+  //    case 0: 
+  //       ret[0] = radians(0);
+  //       ret[1] = radians(90);
+  //       return ret;
+  //    case 1:
+  //       ret[0] = radians(90);
+  //       ret[1] = radians(180);
+  //       return ret;
+  //    case 2: 
+  //       ret[0] = radians(180);
+  //       ret[1] = radians(270);
+  //       return ret;
+  //    case 3: 
+  //       ret[0] = radians(-90);
+  //       ret[1] = radians(0);
+  //       return ret;
+  //  } 
+  //  return ret;
+  //}
+  
+  void update(PGraphics buffer) {
+    int[] coords = localCoords();
+    buffer.line(coords[0], coords[1], coords[2], coords[3]);
+    //float[] angles = orientationToRadians();
+    //bezierArc(buffer, coords[0], coords[1], marks.RADIUS, angles[0], angles[1], curvature); 
+  }
+  
+  void update(PEmbroiderGraphics ebuffer) {
+    int[] coords = localCoords();
+    ebuffer.line(coords[0], coords[1], coords[2], coords[3]);
+    //float[] angles = orientationToRadians();
+    //bezierArc(ebuffer, coords[0], coords[1], marks.RADIUS, angles[0], angles[1], curvature); 
+  }
+  
+  SingleCurve copy() {
+    return new SingleCurve(this.row, this.col, this.quadrant, this.orientation, this.curvature);
+  }
+  
+  
 int[] adjustXY(int orientation, int quadrant) {
+  switch (marks.quadrants) {
+    case 4: 
+      return adjustXY4(orientation, quadrant);
+    case 8: 
+      return adjustXY8(orientation, quadrant);
+    case 3:
+      return adjustXY3(orientation, quadrant);
+    default: 
+      return adjustXY6(orientation, quadrant);
+  }
+
+}
+
+int[] adjustXY3(int orientation, int quadrant) {
+   int [] ret = {0, 0};
+  
+  var arc = (2*PI)/marks.quadrants;
+  arc = arc*quadrant;
+  
+  var len = sqrt((marks.RADIUS/2*marks.RADIUS/2)*2);
+  ret[0] = int(len*sin(arc));
+  ret[1] = int(len*cos(arc));
+  return ret;
+}
+
+int[] adjustXY6(int orientation, int quadrant) {
+   int [] ret = {0, 0};
+  
+  var arc = (2*PI)/marks.quadrants;
+  arc = arc*quadrant;
+  
+  var len = sqrt((marks.RADIUS/2*marks.RADIUS/2)*2);
+  ret[0] = int(len*sin(arc));
+  ret[1] = int(len*cos(arc));
+  return ret;
+}
+
+int[] adjustXY8(int orientation, int quadrant) {
+    int [] ret = {0, 0};
+  
+  var arc = (2*PI)/marks.quadrants;
+  arc = arc*quadrant;
+  var len = (float) marks.RADIUS/2; // even quadrants
+  if (quadrant % 2 == 1) len = sqrt((marks.RADIUS/2*marks.RADIUS/2)*2); // odd quadrants
+ 
+  var x = ret[0] = int(len*sin(arc));
+  var y = ret[1] = int(len*cos(arc));
+  
+  if ((orientation == 1) && (quadrant % 2 == 1)) {
+     if (((quadrant == 3) || (quadrant == 7)) && (orientation == 1)) {
+        ret[0] = -y;
+        ret[1] = -x;
+      } else {
+        ret[0] = y;
+        ret[1] = x;
+      }
+  }
+  println("part arc" + (2*PI/marks.quadrants * 180/PI) + "arc " + arc *180/PI + "ret " + ret[0] + "," + ret[1]);
+  return ret;
+}
+
+int[] adjustXY4(int orientation, int quadrant) {
   int [] ret = {0, 0};
   
+  var arc = (2*PI)/marks.quadrants;
+  arc = arc*quadrant -.5*arc;
+  
+  var len = sqrt((marks.RADIUS/2*marks.RADIUS/2)*2);
+  int x = int(len*sin(arc));
+  int y = int(len*cos(arc));
+  
   switch (orientation) {
-      case 0:  {
-         switch (quadrant) {
-          case 1: ret[0] = -marks.RADIUS/2; break;
-          case 2: ret[0] = -marks.RADIUS/2; ret[1] = -marks.RADIUS/2; break;
-          case 3: ret[1] = -marks.RADIUS/2; 
-         }
-         return ret;
-      }
-      case 1: {
-        switch (quadrant) {
-          case 0: ret[0] =  marks.RADIUS/2; break;
-          case 2: ret[1] = -marks.RADIUS/2; break;
-          case 3: ret[0] = marks.RADIUS/2; ret[1] = -marks.RADIUS/2; 
-         }
-        return ret;
-      }
-      case 2: {
-        switch (quadrant) {
-          case 0: ret[0] = ret[1] =  marks.RADIUS/2; break;
-          case 1: ret[1] = marks.RADIUS/2; break;
-          case 3: ret[0] = marks.RADIUS/2; 
-        }
-      return ret;
+    case 0:  {
+     ret[0] = x;
+     ret[1] = y;
+     break;
     }
-      case 3: {
-        switch (quadrant) {
-          case 0: ret[1] =  marks.RADIUS/2; break;
-          case 1: ret[0] = -marks.RADIUS/2; ret[1] = marks.RADIUS/2; break;
-          case 2: ret[0] = -marks.RADIUS/2; 
-         }
-         return ret;
+    case 1: {
+      if (quadrant == 0 || quadrant == 2) {
+        ret[0] = -y;
+        ret[1] = -x;
+      } else {
+        ret[0] = y;
+        ret[1] = x;
       }
-    } 
+      break;
+    }
+  }
+  println("part arc" + (2*PI/marks.quadrants * 180/PI) + "arc " + arc *180/PI + "ret " + ret[0] + "," + ret[1]);
   return ret;
 }
 
@@ -324,172 +567,6 @@ float findK(float angleStart, float angleEnd) {
     return (4 / 3) * tan(arc / 4);
 }
 
-public SingleCurve curveFromJSON(JSONObject json) {
-    if (json == null) return null;
-    return new SingleCurve(json.getInt("row"), json.getInt("col"), json.getInt("quadrant"), json.getInt("orientation"), json.getFloat("curvature"));
-}
-  
-//=========================== INTERACTION HANDLING ==================================
-//===================================================
-
-void mouseReleased() {
-  println("mouse clicked============+");
-
-  // Create a new current mark
-  var coords = toGrid(mouseX, mouseY);
-  int row = coords[0];
-  int col = coords[1];
-  int quad = coords[2];
-  
-  if (row < 0 || col < 0) return;
-  if ((interfaceBuffer.mode() == interfaceBuffer.TILE_REGION) && 
-       !interfaceBuffer.insideTiling(row, col)) return;
-  
-  println("row " + row + ", col" + col + "quard: " + quad);
-  var mark = marks.get(row, col, quad);
-
-  if (mark == null) {
-      print(coords[2]);
-      mark = new SingleCurve(coords[0], coords[1], coords[2]);
-      println("create" + mark);
-      marks.put(mark);
-  } else {
-    var current = interfaceBuffer.click();
-    if (current == interfaceBuffer.ROTATE) {
-      println("rotate\n" + marks);
-      if (mark.orientation == 3) marks.delete(mark.row, mark.col, mark.quadrant);
-      mark.orientation = (mark.orientation+1)%4;
-      //println(marks);
-    } else if (current == interfaceBuffer.CURVEIN) {
-      println("reducing curve") ;
-      mark.curvature -= 0.1;
-      if (mark.curvature < -2) mark.curvature = 2;
-   } else {
-      println("increasing curve");
-      mark.curvature += 0.1;
-      if (mark.curvature > 2) mark.curvature = -2;
-    }
-  }
-  if (interfaceBuffer.mode() == interfaceBuffer.TILE_REGION) marks.tile(interfaceBuffer.rowStart,interfaceBuffer.rowDist,interfaceBuffer.colStart,interfaceBuffer.colDist,true,true);
-}
-
-
-
-void controlEvent(ControlEvent theEvent) {
-  if (interfaceBuffer != null)  interfaceBuffer.controlEvent(theEvent);
-}
-
-
-//===================================================
-void keyPressed() {
-  println("======= Key Pressed " + key);
-  switch (key) {
-    case ' ':
-    marks.clear();
-    onscreenBuffer = createGraphics(width, height);
-    onscreenBuffer.beginDraw();
-    onscreenBuffer.stroke(127,0,0);
-    onscreenBuffer.strokeWeight(3);
-    marks.addBuffer(onscreenBuffer);
-    break;
-  case 's':
-  case 'S': // S to save
-    interfaceBuffer.save();
-    break;
-  case 'c':
-  case 'C':
-    println("changing curvature");
-    var current = interfaceBuffer.click();
-    if (current == interfaceBuffer.ROTATE) interfaceBuffer.setClick(interfaceBuffer.CURVEIN);
-    else if (current == interfaceBuffer.CURVEIN) interfaceBuffer.setClick(interfaceBuffer.CURVEOUT);
-    else interfaceBuffer.setClick(interfaceBuffer.ROTATE);
-    break;
-  }
-
-}
-
-class SingleCurve {
-  public float curvature;
-  int row, col;
-  public int orientation;
-  public int quadrant;
-  ArrayList<SingleCurve> neighbors = new ArrayList<SingleCurve>(); 
-  
-  // quadrant 0 from 0 t PI/2. 1 is the next quarter, 
-  // 2 is the next, and 3 is the final quarter of a circle
-  SingleCurve(int row, int col) {
-    this(row, col, 0, 0);
-  }
-  
-  SingleCurve(int row, int col, int quadrant) {
-    this(row, col, quadrant, 0, 1);
-  }
-  
-  SingleCurve(int row, int col, int quadrant, int orientation) {
-    this(row, col, quadrant, orientation, 1);
-  }
-  
-  SingleCurve(int row, int col, int quadrant, int orientation,  float curvature) {
-    this.curvature = curvature;
-    this.orientation = orientation;
-    this.quadrant = quadrant;
-    this.row = row;
-    this.col = col;
-  }
- 
-  void clear() {
-    neighbors = new ArrayList<SingleCurve>();
-  }
-  
-  int[] localCoords() {
-    // draw a square onscreen for reference
-    //rect(x, y, radius, radius);
-    var adjust = adjustXY(orientation, quadrant);
-    var localx = this.col*marks.RADIUS + adjust[0];
-    var localy = this.row*marks.RADIUS + adjust[1];
-    int[] ret = {localx, localy};
-    return ret;
-  }
-  
-  float[] orientationToRadians() {
-    float[] ret = new float[2];
-    switch (orientation) {
-      case 0: 
-         ret[0] = radians(0);
-         ret[1] = radians(90);
-         return ret;
-      case 1:
-         ret[0] = radians(90);
-         ret[1] = radians(180);
-         return ret;
-      case 2: 
-         ret[0] = radians(180);
-         ret[1] = radians(270);
-         return ret;
-      case 3: 
-         ret[0] = radians(-90);
-         ret[1] = radians(0);
-         return ret;
-    } 
-    return ret;
-  }
-  
-  void update(PGraphics buffer) {
-    int[] coords = localCoords();
-    float[] angles = orientationToRadians();
-    bezierArc(buffer, coords[0], coords[1], marks.RADIUS, angles[0], angles[1], curvature); 
-  }
-  
-  void update(PEmbroiderGraphics ebuffer) {
-    int[] coords = localCoords();
-    float[] angles = orientationToRadians();
-    bezierArc(ebuffer, coords[0], coords[1], marks.RADIUS, angles[0], angles[1], curvature); 
-  }
-  
-  SingleCurve copy() {
-    return new SingleCurve(this.row, this.col, this.quadrant, this.orientation, this.curvature);
-  }
-  
   public JSONObject toJSON() {
     var curve = new JSONObject();
     curve.setInt("row", row);
@@ -544,7 +621,7 @@ class CurveTable {
   
   
   void tile(int startRow, int rowDist, int startCol, int colDist, boolean x, boolean y) {
-    println("tile " + startRow + "," + startCol + "," + rowDist + "," + colDist +"," + x + "," + y);
+    //println("tile " + startRow + "," + startCol + "," + rowDist + "," + colDist +"," + x + "," + y);
     //println("[" + table.length +"][" + table[0].length +"]");
     // startx/starty is the grid coordinates of the top left of the tile
     // width is the width of the tile
@@ -552,20 +629,20 @@ class CurveTable {
     // x is whether to tile in x direction
     // y is whether to tile in y direction
     SingleCurve tile;
-    println(marks);
+    //println(marks);
     //println(this);
     
     // Loop through the tile region in each quadrant
-    for (int q = 0; q<4;  q++) {
+    for (int q = 0; q<marks.quadrants;  q++) {
       for (int s=startRow; s<=startRow+rowDist; s++) {
         for (int t=startCol; t<=startCol+colDist; t++) {
           tile = table[s][t][q];
           if (tile != null) {
-            println("copying tile: " + tile);
+            //println("copying tile: " + tile);
             // loop through the table, starting at a copy of the tile located at (0,0) and moving by tile size
             for (int gridrow=0+s-startRow; gridrow+rowDist < marks.rows; gridrow+=rowDist) {
               for (int gridcol=0+t-startCol; gridcol+colDist < marks.cols; gridcol+=colDist) {
-                println("copying to " + gridcol + "," + gridrow);
+                //println("copying to " + gridcol + "," + gridrow);
                 if (tile != null && !interfaceBuffer.insideTiling(gridrow, gridcol)) {
                    tile = tile.copy();
                    tile.col = gridcol;
@@ -592,9 +669,9 @@ class CurveTable {
     var curve = this.table[row][col][quadrant];
     if (curve == null) return;
     this.table[row][col][quadrant] = null;
-    println("curves: " + curves.size());
+    //println("curves: " + curves.size());
     curves.remove(curve);
-    println("curves: " + curves.size());
+    //println("curves: " + curves.size());
     curve.clear();
   }
   
@@ -649,7 +726,7 @@ class CurveTable {
   }
   
   void clear() {
-    println("clearing table");
+    //println("clearing table");
     var symmetry = interfaceBuffer.symmetry();
     if (symmetry == interfaceBuffer.THREE_WAY) quadrants = 3;
     if (symmetry == interfaceBuffer.FOUR_WAY) quadrants = 4;
@@ -667,7 +744,7 @@ class CurveTable {
    
     this.table = new SingleCurve[rows][cols][quadrants];
     this.curves = new ArrayList<SingleCurve>();
-    println("made table rows: " + rows + ", cols: " + cols + ", quadrants " + quadrants);
+    //println("made table rows: " + rows + ", cols: " + cols + ", quadrants " + quadrants);
 
   }
   
@@ -969,8 +1046,8 @@ class Interface extends PGraphics {
   
  // are x/y inside the tiling rect?
   public  boolean insideTiling(int row, int col) {
-    println("row, col" + row + "," + col);
-    println(this);
+    //println("row, col" + row + "," + col);
+    //println(this);
     return (row >= rowStart && row <= rowEnd && col >= colStart && col <= colEnd);
   }
   
@@ -1018,7 +1095,7 @@ public class MyRange extends Range {
    // important to override these -- ideally only if snapping is on.
    public Range update() {
      if (!this.snapToIntegers) return super.update();
-     println("in update" + _myArrayValue[1]);
+     //println("in update" + _myArrayValue[1]);
      _myArrayValue[ 0 ] = map( minHandle , handleSize , getWidth( ) - handleSize , _myMin , _myMax );
      _myArrayValue[ 1 ] = map( maxHandle , handleSize , getWidth( ) - handleSize , _myMin , _myMax );
      _myArrayValue[ 0 ] = round(_myArrayValue[0]);
@@ -1031,7 +1108,7 @@ public class MyRange extends Range {
    
    public Range setValue(float theValue) {
      if (!this.snapToIntegers) return super.setValue(theValue);
-     println("in setValue" + theValue);
+     ///println("in setValue" + theValue);
      _myValue = round(theValue);
      broadcast(ARRAY);
      return this;
