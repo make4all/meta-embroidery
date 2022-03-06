@@ -4,14 +4,27 @@ import controlP5.*;
 import processing.core.PApplet;
 
 
+// the embroidery buffer
 PEmbroiderGraphics E;
+// the buffer that is used for saving to svg
 PGraphics offscreenBuffer;
+// the non-embroidery onscreen buffer
 PGraphics onscreenBuffer;
+// The user interface
 Interface interfaceBuffer;
+// for naming each file differently during a session
 int fileNumber = 1;
+// the table with all the curves (or lines) that are shown on screen
 CurveTable marks;
 
+// the interface is 200 pixels wide
 int interfaceWidth = 200;
+
+
+////////////////////////////
+// HELPER VARIABLES
+////////////////////////////
+  
 float SQRT3 = sqrt(3);
 int WHITE = 255;
 int BLACK = 0;
@@ -25,6 +38,7 @@ String out = "Controls:\n" +
   "[space]: Clear grid";
 
 //===================================================
+// Processing runs this first. We are just setting things up here
 void setup() {
   size(600, 800);
   smooth();
@@ -36,34 +50,45 @@ void setup() {
   E = new PEmbroiderGraphics(this, width, height);
   E.translate(interfaceWidth, 0);
   basicEmbroiderySettings(E);
-  marks.addBuffer(E); // uncomment to show embroidering path
+
+  // comment to hide embroidered paths
+  // uncomment to show embroidering path  
+  // marks.addBuffer(E); 
 
   onscreenBuffer = createGraphics(width, height);
   interfaceBuffer = new Interface(this, interfaceWidth, height);
 
   marks.addBuffer(onscreenBuffer);
 
-  //noLoop();
-
   println(out);
 }
 
 //===================================================
 void draw() {
+  // color the background
   background(250);
+  // draw the grid to help the user click in the right places 
   drawGrid(interfaceWidth, 0);
+
   pushStyle();
+  // draw all the curves
   drawCurves();
   popStyle();
 }
 
 void drawCurves() {
+  
   E.beginDraw();
   E.clear();
+  
+  // I'm not sure why but we have to recreate the offscreen buffer each
+  // draw cycle or we get duplicate lines
   marks.removeBuffer(offscreenBuffer);
   String svgFilePath = sketchPath("curveDemo" + fileNumber + ".svg");
   offscreenBuffer = createGraphics(width, height, SVG, svgFilePath);
   marks.addBuffer(offscreenBuffer);
+
+ 
   offscreenBuffer.beginDraw();
   basicDrawingSettings(offscreenBuffer);
   onscreenBuffer.beginDraw();
@@ -75,7 +100,7 @@ void drawCurves() {
 
   marks.updateAll();
   onscreenBuffer.endDraw();
-
+   
   image(onscreenBuffer, interfaceWidth, 0);
 
   E.visualize(true, true, true);
@@ -111,8 +136,13 @@ void basicEmbroiderySettings(PEmbroiderGraphics E) {
   randomSeed(5);
 }
 
+// converts a row and column to coordinates
+// that you can draw at 
 float[] toCoords(int row, int col) {
   float[] ret = new float[2];
+
+  // the conversion depends on how many quadrants there are
+  // right now only 4 and 8 quadrants is debugged
   switch(marks.quadrants) {
   case 4:
   case 8:
@@ -127,14 +157,20 @@ float[] toCoords(int row, int col) {
   return ret;
 }
 
+// converts an x and y coordinate
+// to grid coordinates (rows and columns) plus quadrant.
 int[] toGrid(int x, int y) {
   // translate
   x = x - interfaceWidth;
   int[] ret = new int[3];
-  println("x, y" + x + "," + y);
+  //println("x, y" + x + "," + y);
+
+  // the conversion depends on how many quadrants there are
+  // right now only 4 and 8 quadrants is debugged
   switch(marks.quadrants) {
   case 4:
   case 8:
+    // if there are 4 or 8 quadrants we're dealing with squares. 
     ret[1] = floor((x + marks.RADIUS/2)/ marks.RADIUS); // column
     ret[0] = floor((y + marks.RADIUS/2)/ marks.RADIUS); // row
     break;
@@ -148,11 +184,10 @@ int[] toGrid(int x, int y) {
     break;
   }
 
-  // now find the quadrant
-  // should do the following:
-  // origin to 0,0
+  // We assume the user didn't press right on a grid point
+  // and we want to translate that "error" into which quadrant to
+  // add a line in.
   float[] translate = toCoords(ret[0], ret[1]);
-  println(translate);
   x = (int) (x - translate[0]);
   y = (int) (y - translate[1]);
   println("x, y" + x + "," + y);
@@ -359,11 +394,11 @@ class SingleCurve {
   }
 
   SingleCurve(int row, int col, int quadrant) {
-    this(row, col, quadrant, 0, 1);
+    this(row, col, quadrant, 0, 0);
   }
 
   SingleCurve(int row, int col, int quadrant, int orientation) {
-    this(row, col, quadrant, orientation, 1);
+    this(row, col, quadrant, orientation, 0);
   }
 
   SingleCurve(int row, int col, int quadrant, int orientation, float curvature) {
@@ -423,16 +458,31 @@ class SingleCurve {
 
   void update(PGraphics buffer) {
     int[] coords = localCoords();
-    buffer.line(coords[0], coords[1], coords[2], coords[3]);
-    //float[] angles = orientationToRadians();
-    //bezierArc(buffer, coords[0], coords[1], marks.RADIUS, angles[0], angles[1], curvature);
+    if (this.curvature == 0) {
+      buffer.line(coords[0], coords[1], coords[2], coords[3]); return;
+    }
+    float startAngle = 0, endAngle = PI;
+    switch(quadrant) {
+      case 0: 
+         startAngle = 0; endAngle = radians(90);
+         break;
+      case 1: 
+         startAngle = radians(90); endAngle = radians(180);
+         break;
+      case 2:
+         startAngle = radians(180); endAngle = radians(270);
+         break;
+      case 3: 
+         startAngle = radians(-90); endAngle = radians(0);
+         break;
+    }
+    bezierArc(buffer, coords[0], coords[1], coords[2], coords[3], marks.RADIUS, startAngle, endAngle, curvature);
   }
 
   void update(PEmbroiderGraphics ebuffer) {
     int[] coords = localCoords();
-    ebuffer.line(coords[0], coords[1], coords[2], coords[3]);
-    //float[] angles = orientationToRadians();
-    //bezierArc(ebuffer, coords[0], coords[1], marks.RADIUS, angles[0], angles[1], curvature);
+    if (this.curvature == 0) ebuffer.line(coords[0], coords[1], coords[2], coords[3]);
+    //else bezierArc(ebuffer, coords[0], coords[1], coords[2], coords[3], marks.RADIUS, 0, PI, curvature);
   }
 
   SingleCurve copy() {
@@ -526,17 +576,23 @@ class SingleCurve {
     return ret;
   }
 
-  void bezierArc(PGraphics buffer, int centerx, int centery, int radius, float angleStart, float angleEnd, float curvature) {
+  void bezierArc(PGraphics buffer, int startx, int starty, int endx, int endy, int radius, float angleStart, float angleEnd, float curvature) {
     // assuming angleStart and angleEnd are in raians
 
+    float centerx = (endx-startx)/2+startx;
+    float centery = (endy-starty)/2+starty;
+    println("finding control points for: " + centerx + "," + centery);
     // Finding the coordinates of the control points in a simplified case where the center of the circle is at [0,0]
-    float[][] relControlPoints = getRelativeControlPoints(angleStart, angleEnd, radius/2*curvature);
-    int[] startp = getPointAtAngle(angleStart, centerx, centery, radius/2);
-    int[] endp = getPointAtAngle(angleEnd, centerx, centery, radius/2);
+    
+    float[][] relControlPoints = getRelativeControlPoints(angleStart, angleEnd, radius/4*curvature);
+    
+    int[] startp = {startx, starty};
     buffer.bezier(startp[0], startp[1],
       centerx + relControlPoints[0][0], centery + relControlPoints[0][1],
       centerx + relControlPoints[1][0], centery + relControlPoints[1][1],
-      endp[0], endp[1]);
+      endx, endy);
+    buffer.circle(centerx + relControlPoints[1][0], centery + relControlPoints[1][1], 3);
+    buffer.circle(centerx + relControlPoints[0][0], centery + relControlPoints[0][1], 3);
   }
 
   void bezierArc(PEmbroiderGraphics buffer, int centerx, int centery, int radius, float angleStart, float angleEnd, float curvature) {
@@ -564,10 +620,12 @@ class SingleCurve {
     // Angle between the hypotenuse and Ox for control point 2.
     float angle2 = angleEnd - atan(factor);
     float[][] ret = new float[2][2];
+    if (radius < 0) distToCtrPoint = distToCtrPoint * -1;
     ret[0][0] = cos(angle1) * distToCtrPoint;
     ret[0][1] = sin(angle1) * distToCtrPoint;
     ret[1][0] = cos(angle2) * distToCtrPoint;
     ret[1][1] = sin(angle2) * distToCtrPoint;
+    
     return ret;
   }
 
