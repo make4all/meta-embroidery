@@ -14,8 +14,8 @@ PGraphics onscreenBuffer;
 Interface interfaceBuffer;
 // for naming each file differently during a session
 int fileNumber = 1;
-// the table with all the curves (or lines) that are shown on screen
-CurveTable marks;
+// the table with all the lines (or lines) that are shown on screen
+LineTable marks;
 
 // the interface is 200 pixels wide
 int interfaceWidth = 200;
@@ -31,10 +31,10 @@ int BLACK = 0;
 int BLUE = #0000FF;
 String out = "Controls:\n" +
   "s: Save embroidery file\n" +
-  "i: Insert curve mode\n" +
+  "i: Insert line mode\n" +
   "t: Tile across plane\n" +
-  "c: Curve less mode\n" +
-  "C: Curve more mode\n" +
+  "c: Line less mode\n" +
+  "C: Line more mode\n" +
   "[space]: Clear grid";
 
 //===================================================
@@ -45,7 +45,7 @@ void setup() {
 
   int cols = round((width-interfaceWidth)/60)+1;
   int rows = round(height/60)+1;
-  marks =  new CurveTable(rows, cols);
+  marks =  new LineTable(rows+1, cols+1);
 
   E = new PEmbroiderGraphics(this, width, height);
   E.translate(interfaceWidth, 0);
@@ -71,12 +71,12 @@ void draw() {
   drawGrid(interfaceWidth, 0);
 
   pushStyle();
-  // draw all the curves
-  drawCurves();
+  // draw all the lines
+  drawLines();
   popStyle();
 }
 
-void drawCurves() {
+void drawLines() {
   
   E.beginDraw();
   E.clear();
@@ -84,7 +84,7 @@ void drawCurves() {
   // I'm not sure why but we have to recreate the offscreen buffer each
   // draw cycle or we get duplicate lines
   marks.removeBuffer(offscreenBuffer);
-  String svgFilePath = sketchPath("curveDemo" + fileNumber + ".svg");
+  String svgFilePath = sketchPath("lineDemo" + fileNumber + ".svg");
   offscreenBuffer = createGraphics(width, height, SVG, svgFilePath);
   marks.addBuffer(offscreenBuffer);
 
@@ -145,12 +145,12 @@ float[] toCoords(int row, int col) {
   // right now only 4 and 8 quadrants is debugged
   switch(marks.quadrants) {
   case 4:
-  case 8:
+  case 8: // for 4/8 marks, just multiple times radius
     ret[0] = col*marks.RADIUS;
     ret[1] = row*marks.RADIUS;
     break;
   case 3:
-  case 6:
+  case 6: // here we need to adjust for which row we are in and 
     ret[0] = marks.RADIUS + col*marks.RADIUS*3/2;
     ret[1] = marks.RADIUS + row*SQRT3*marks.RADIUS - marks.RADIUS*SQRT3/(1+col%2);
   }
@@ -160,7 +160,7 @@ float[] toCoords(int row, int col) {
 // converts an x and y coordinate
 // to grid coordinates (rows and columns) plus quadrant.
 int[] toGrid(int x, int y) {
-  // translate
+  // translate to account for interface
   x = x - interfaceWidth;
   int[] ret = new int[3];
   //println("x, y" + x + "," + y);
@@ -187,38 +187,61 @@ int[] toGrid(int x, int y) {
   // We assume the user didn't press right on a grid point
   // and we want to translate that "error" into which quadrant to
   // add a line in.
+
+  // first, calculate where on the unit circle around the grid point they clicked
+  // get the coords for this specific row and column
   float[] translate = toCoords(ret[0], ret[1]);
-  x = (int) (x - translate[0]);
-  y = (int) (y - translate[1]);
-  println("x, y" + x + "," + y);
-  float deg = atan2(x, y);
-  if (deg < 0) deg = 2*PI + deg;
+  // then move them to the equivalent coords for a gridpoint at (0,0)
+  int xDiff = (int) (x - translate[0]);
+  int yDiff = (int) (y - translate[1]);
+  // then calculate the angle they clicked at
+  float angle = atan2(xDiff, yDiff);
+  // adjust to the correct part of the circle
+  if (angle < 0) angle = 2*PI + angle;
+  // calculat the degrees in each pie piece of the circle divided by the number of quadrants
   float arc = (2*PI)/marks.quadrants;
-  int quadrant = round( arc*.5 + deg/arc)%marks.quadrants;
+  // convert the angle they clicked at to a quadrant
+  int quadrant = 0;
+  switch(marks.quadrants) {
+  case 4:
+    quadrant = round( angle/arc)%marks.quadrants; break;
+  case 8: 
+    quadrant = round( arc*.5 + angle/arc)%marks.quadrants; break;
+  }
 
-  println("deg " + atan2(x, y)*180/PI  + "," + deg*180/PI + " arc " + arc*180/PI + " quadrant " + quadrant);
+  println("deg " + atan2(x, y)*180/PI  + "," + angle*180/PI + " arc " + arc*180/PI + " quadrant " + quadrant);
 
+  // return the coordinates of the grid point nearest the click and the quadrant
   ret[2] = quadrant;
   println(ret);
   return ret;
 }
 
+
+// draw the grid of grid points so the user can see where to click
 void drawGrid(int xOffset, int yOffset) {
   stroke(50);
 
   pushMatrix();
   translate(xOffset, yOffset);
 
+  // if were are in tile region mode draw a square around the region to be tiled
   if (interfaceBuffer.mode() == interfaceBuffer.TILE_REGION) {
     // Top left corner is different color to indicate where to draw
     fill(245);
     stroke(BLACK);
-    float
-    [] starts = toCoords(interfaceBuffer.rowStart, interfaceBuffer.colStart);
+    float[] starts = toCoords(interfaceBuffer.colStart, interfaceBuffer.rowStart);
+    float[] ends = new float[2];
     if (marks.quadrants == 4 || marks.quadrants == 8) {
-      circle(starts[0], starts[1], marks.RADIUS);
-    } else circle(starts[0], starts[1], marks.RADIUS*2);
-
+      ends[0] = (interfaceBuffer.colEnd-interfaceBuffer.colStart + 1)*marks.RADIUS;
+      ends[1] = (interfaceBuffer.rowEnd-interfaceBuffer.rowStart + 1)*marks.RADIUS;
+      rect(starts[0]-marks.RADIUS/2, starts[1]-marks.RADIUS/2, ends[0], ends[1], 28);
+    } else {
+      ends[0] = (interfaceBuffer.colEnd-interfaceBuffer.colStart + 1)*marks.RADIUS*3/2+marks.RADIUS/2;
+      ends[1] = (interfaceBuffer.rowEnd-interfaceBuffer.rowStart + 1)*marks.RADIUS*SQRT3;
+      rect(starts[0]-marks.RADIUS, starts[1]-marks.RADIUS*SQRT3/2, ends[0], ends[1], 28);
+    }
+    
     noFill();
   }
 
@@ -252,9 +275,9 @@ void drawGrid(int xOffset, int yOffset) {
 
 
 //===============================    HELPERS ===============================
-public SingleCurve curveFromJSON(JSONObject json) {
+public SingleLine lineFromJSON(JSONObject json) {
   if (json == null) return null;
-  return new SingleCurve(json.getInt("row"), json.getInt("col"), json.getInt("quadrant"), json.getInt("orientation"), json.getFloat("curvature"));
+  return new SingleLine(json.getInt("row"), json.getInt("col"), json.getInt("quadrant"), json.getInt("orientation"), json.getFloat("curvature"));
 }
 //=========================== INTERACTION HANDLING ==================================
 //===================================================
@@ -273,32 +296,24 @@ void mouseReleased() {
     !interfaceBuffer.insideTiling(row, col)) return;
 
   println("row " + row + ", col" + col + "quard: " + quad);
-  SingleCurve mark = marks.get(row, col, quad);
+  SingleLine mark = marks.get(row, col, quad);
 
   if (mark == null) {
-    //print(coords[2]);
-    mark = new SingleCurve(coords[0], coords[1], coords[2]);
-    //println("create" + mark);
+    mark = new SingleLine(coords[0], coords[1], coords[2]);
     marks.put(mark);
   } else {
     String current = interfaceBuffer.click();
     if (current == interfaceBuffer.ROTATE) {
-      //println("rotate\n" + marks);
       println(mark);
       if (mark.orientation() == 1) marks.delete(mark.row(), mark.col(), mark.quadrant());
       mark.orientation(mark.orientation+1);
-      println(mark);
-      //println(marks);
     } else if (current == interfaceBuffer.JOINT_CIRCLE || current == interfaceBuffer.JOINT_SQUARE) {
-      // need to add a circle
       marks.flipJoint(row, col);
       marks.jointType(current);
     } else if (current == interfaceBuffer.CURVEIN) {
-      //println("reducing curve") ;
       mark.curvature(mark.curvature() - 0.1);
       if (mark.curvature() < -2) mark.curvature(2);
     } else {
-      //println("increasing curve");
       mark.curvature(mark.curvature() + 0.1);
       if (mark.curvature() > 2) mark.curvature(-2);
     }
@@ -306,8 +321,7 @@ void mouseReleased() {
   if (interfaceBuffer.mode() == interfaceBuffer.TILE_REGION) marks.tile(interfaceBuffer.rowStart, interfaceBuffer.rowDist, interfaceBuffer.colStart, interfaceBuffer.colDist, true, true);
 }
 
-
-
+// event handling is done by the interface buffer
 void controlEvent(ControlEvent theEvent) {
   if (interfaceBuffer != null)  interfaceBuffer.controlEvent(theEvent);
 }
@@ -329,18 +343,15 @@ void keyPressed() {
   case 'S': // S to save
     interfaceBuffer.save();
     break;
-  case 'c':
-  case 'C':
-    println("changing curvature");
-    String current = interfaceBuffer.click();
-    if (current == interfaceBuffer.ROTATE) interfaceBuffer.click(interfaceBuffer.CURVEIN);
-    else if (current == interfaceBuffer.CURVEIN) interfaceBuffer.click(interfaceBuffer.CURVEOUT);
-    else interfaceBuffer.click(interfaceBuffer.ROTATE);
-    break;
   }
 }
 
-class SingleCurve {
+///////////////////// HELPER CLASSES /////////////////////
+
+// This class holds a single line and knows how to draw it 
+class SingleLine {
+  // should the line be curved? by how much?
+  // (getters and setters)
   private float curvature;
   public float curvature() {
     return curvature;
@@ -350,6 +361,8 @@ class SingleCurve {
     updateCoords();
   }
 
+  // what grid location is the line in?
+  // (getters and setters)
   private int row, col;
   public int row() {
     return row;
@@ -366,6 +379,9 @@ class SingleCurve {
     updateCoords();
   }
 
+  // should the line be rotated? (currently only used for
+  // angled lines in 8 quadrant mode)
+  // (getters and setters)
   private int orientation;
   public int orientation() {
     return orientation;
@@ -375,6 +391,8 @@ class SingleCurve {
     updateCoords();
   }
 
+  // what quadrant is the line in?
+  // (getters and setters)
   private int quadrant;
   public int quadrant() {
     return quadrant;
@@ -384,24 +402,23 @@ class SingleCurve {
     updateCoords();
   }
 
-  ArrayList<SingleCurve> neighbors = new ArrayList<SingleCurve>();
+  // What are the coordinates of the line in x/y (instead of grid) coords?
   int[] localCoords = new int[4];
 
-  // quadrant 0 from 0 t PI/2. 1 is the next quarter,
-  // 2 is the next, and 3 is the final quarter of a circle
-  SingleCurve(int row, int col) {
+  ////////// CONSTRUCTORS /////////////
+  SingleLine(int row, int col) {
     this(row, col, 0, 0);
   }
 
-  SingleCurve(int row, int col, int quadrant) {
+  SingleLine(int row, int col, int quadrant) {
     this(row, col, quadrant, 0, 0);
   }
 
-  SingleCurve(int row, int col, int quadrant, int orientation) {
+  SingleLine(int row, int col, int quadrant, int orientation) {
     this(row, col, quadrant, orientation, 0);
   }
 
-  SingleCurve(int row, int col, int quadrant, int orientation, float curvature) {
+  SingleLine(int row, int col, int quadrant, int orientation, float curvature) {
     this.curvature = curvature;
     this.orientation = orientation;
     this.quadrant = quadrant;
@@ -410,57 +427,43 @@ class SingleCurve {
     updateCoords();
   }
 
-  void clear() {
-    neighbors = new ArrayList<SingleCurve>();
-  }
-
+  // update the local coordinates for the start and end of this line
+  // assumes that the start is always the x/y coordinates of the grid point this line is
+  // associated with. endXY calculates the end relative to that.
   void updateCoords() {
-    int[] adjust = adjustXY(orientation, quadrant);
+    int[] endAdjust = endXY(orientation, quadrant);
     if (orientation == 1) {
       this.localCoords[0] = this.col*marks.RADIUS;
       this.localCoords[1] = this.row*marks.RADIUS;
-      this.localCoords[2] = this.col*marks.RADIUS + adjust[0];
-      this.localCoords[3] = this.row*marks.RADIUS + adjust[1];
+      this.localCoords[2] = this.col*marks.RADIUS + endAdjust[0];
+      this.localCoords[3] = this.row*marks.RADIUS + endAdjust[1];
     } else {
       this.localCoords[0] = this.col*marks.RADIUS;
-      this.localCoords[1] = this.row*marks.RADIUS + adjust[1];
-      this.localCoords[2] = this.col*marks.RADIUS + adjust[0];
+      this.localCoords[1] = this.row*marks.RADIUS + endAdjust[1];
+      this.localCoords[2] = this.col*marks.RADIUS + endAdjust[0];
       this.localCoords[3] = this.row*marks.RADIUS;
     }
   }
 
+  // return the local coordinates
   int[] localCoords() {
     return localCoords;
   }
 
-  //float[] orientationToRadians() {
-  //  float[] ret = new float[2];
-  //  switch (orientation) {
-  //    case 0:
-  //       ret[0] = radians(0);
-  //       ret[1] = radians(90);
-  //       return ret;
-  //    case 1:
-  //       ret[0] = radians(90);
-  //       ret[1] = radians(180);
-  //       return ret;
-  //    case 2:
-  //       ret[0] = radians(180);
-  //       ret[1] = radians(270);
-  //       return ret;
-  //    case 3:
-  //       ret[0] = radians(-90);
-  //       ret[1] = radians(0);
-  //       return ret;
-  //  }
-  //  return ret;
-  //}
 
+  // udpate how this line is drawn on the screen
   void update(PGraphics buffer) {
+    // get x/y instead of grid coordinates
     int[] coords = localCoords();
+
+    // draw the line as a line if there is no curvature
     if (this.curvature == 0) {
       buffer.line(coords[0], coords[1], coords[2], coords[3]); return;
     }
+
+    // draw the line as a bezier curve if there is curvature
+    // first calculate the start and end angle of the line if there were a circle
+    // centered at the line's center, with line being drawn from the grid coordinate location outward.
     float startAngle = 0, endAngle = PI;
     switch(quadrant) {
       case 0: 
@@ -476,34 +479,43 @@ class SingleCurve {
          startAngle = radians(-90); endAngle = radians(0);
          break;
     }
+
+    // next create a bezier arc for the line
     bezierArc(buffer, coords[0], coords[1], coords[2], coords[3], marks.RADIUS, startAngle, endAngle, curvature);
   }
 
+  // TODO: this needs to be updated to do the same thing as the regular buffer update function
+  // if we use pembroider
   void update(PEmbroiderGraphics ebuffer) {
     int[] coords = localCoords();
     if (this.curvature == 0) ebuffer.line(coords[0], coords[1], coords[2], coords[3]);
     //else bezierArc(ebuffer, coords[0], coords[1], coords[2], coords[3], marks.RADIUS, 0, PI, curvature);
   }
 
-  SingleCurve copy() {
-    return new SingleCurve(this.row, this.col, this.quadrant, this.orientation, this.curvature);
+  // copy this line
+  SingleLine copy() {
+    return new SingleLine(this.row, this.col, this.quadrant, this.orientation, this.curvature);
   }
 
 
-  int[] adjustXY(int orientation, int quadrant) {
+  // Calculate the x and y offset in x/y (not grid) coords of the end of this line
+  // relative to its start, based on which quadrent it is in and its orientation.
+  // this calls different functions depnding on the number of quadrants
+  int[] endXY(int orientation, int quadrant) {
     switch (marks.quadrants) {
     case 4:
-      return adjustXY4(orientation, quadrant);
+      return endXY4(orientation, quadrant);
     case 8:
-      return adjustXY8(orientation, quadrant);
+      return endXY8(orientation, quadrant);
     case 3:
-      return adjustXY3(orientation, quadrant);
+      return endXY3(orientation, quadrant);
     default:
-      return adjustXY6(orientation, quadrant);
+      return endXY6(orientation, quadrant);
     }
   }
 
-  int[] adjustXY3(int orientation, int quadrant) {
+  // may not be fulling working
+  int[] endXY3(int orientation, int quadrant) {
     int [] ret = {0, 0};
 
     float arc = (2*PI)/marks.quadrants;
@@ -515,7 +527,8 @@ class SingleCurve {
     return ret;
   }
 
-  int[] adjustXY6(int orientation, int quadrant) {
+  // may not be fully working
+  int[] endXY6(int orientation, int quadrant) {
     int [] ret = {0, 0};
 
     float arc = (2*PI)/marks.quadrants;
@@ -527,17 +540,25 @@ class SingleCurve {
     return ret;
   }
 
-  int[] adjustXY8(int orientation, int quadrant) {
+  // Eigh quadrant case
+  int[] endXY8(int orientation, int quadrant) {
     int [] ret = {0, 0};
 
+    // firts figure out the angle for this line
     float arc = (2*PI)/marks.quadrants;
     arc = arc*quadrant;
+
+    // then calculate its length. This will differ if we are drawing a line to the
+    // side (just use RADIUS/2) versus the corner (need to use pythagorean theorem) of the grid square
     float len = (float) marks.RADIUS/2; // even quadrants
     if (quadrant % 2 == 1) len = sqrt((marks.RADIUS/2*marks.RADIUS/2)*2); // odd quadrants
 
+    // in most cases we just return the length time the angle
     int x = ret[0] = int(len*sin(arc));
     int y = ret[1] = int(len*cos(arc));
 
+    // however if we are in an odd quadrant (pointed at a corner)
+    // the line can rotate. We need to adjust for this
     if ((orientation == 1) && (quadrant % 2 == 1)) {
       if (((quadrant == 3) || (quadrant == 7)) && (orientation == 1)) {
         ret[0] = -y;
@@ -547,32 +568,21 @@ class SingleCurve {
         ret[1] = x;
       }
     }
-    println("part arc" + (2*PI/marks.quadrants * 180/PI) + "arc " + arc *180/PI + "ret " + ret[0] + "," + ret[1]);
     return ret;
   }
 
-  int[] adjustXY4(int orientation, int quadrant) {
+  // For the 4 quadrant case, lines always go out to the side 
+  int[] endXY4(int orientation, int quadrant) {
     int [] ret = {0, 0};
 
     float arc = (2*PI)/marks.quadrants;
-    arc = arc*quadrant -.5*arc;
+    arc = arc*quadrant;
 
-    float len = sqrt((marks.RADIUS/2*marks.RADIUS/2)*2);
-    switch(quadrant) {
-    case 0:
-      ret[0] = int(len*sin(arc));
-      break;
-    case 1:
-      ret[1] = int(len*cos(arc));
-      break;
-    case 2:
-      ret[0] = int(len*sin(arc));
-      break;
-    case 3:
-      ret[1] = int(len*cos(arc));
-      break;
-    }
-    println("part arc q " + quadrant + "," + (2*PI/marks.quadrants * 180/PI) + "arc " + arc *180/PI + "ret " + ret[0] + "," + ret[1]);
+    // then calculate its length
+    float len = (float) marks.RADIUS/2; // even quadrants
+    // times the angle
+    int x = ret[0] = int(len*sin(arc));
+    int y = ret[1] = int(len*cos(arc));
     return ret;
   }
 
@@ -629,7 +639,7 @@ class SingleCurve {
     return ret;
   }
 
-
+  // Find the coordinates of the point at a certain angle on a circle of radius radius
   int[] getPointAtAngle(float angle, int centerx, int centery, float radius) {
     int[] ret = new int[2];
     ret[0] = floor(centerx + radius * cos(angle));
@@ -637,6 +647,7 @@ class SingleCurve {
     return ret;
   }
 
+  // an estimate of K, needed for bezier curves
   float findK(float angleStart, float angleEnd) {
     float arc = angleEnd - angleStart;
 
@@ -648,95 +659,112 @@ class SingleCurve {
     return (4 / 3) * tan(arc / 4);
   }
 
+  // save this line as a JSON object
   public JSONObject toJSON() {
-    JSONObject curve = new JSONObject();
-    curve.setInt("row", row);
-    curve.setInt("col", col);
-    curve.setInt("quadrant", quadrant);
-    curve.setInt("orientation", orientation);
-    curve.setFloat("curvature", curvature);
-    return curve;
+    JSONObject line = new JSONObject();
+    line.setInt("row", row);
+    line.setInt("col", col);
+    line.setInt("quadrant", quadrant);
+    line.setInt("orientation", orientation);
+    line.setFloat("curvature", curvature);
+    return line;
   }
 
+  // for debugging
   String toString() {
-    return "Curve at " + row + "," + col + ":q" + quadrant + ":o"+orientation;
+    return "Line at " + row + "," + col + ":q" + quadrant + ":o"+orientation;
   }
 }
 
 
-class CurveTable {
-  SingleCurve[][][] table;
+//// Class for storing all the lines
+class LineTable {
+  // the array of lines
+  SingleLine[][][] table;
+  // grid points with a line on them
   boolean [][] joints;
+  // the number of rows
   int rows;
+  // the number of columns
   int cols;
+  // the number of quadrants
   int quadrants = 4;
+
+  // the buffers to draw on (can have more than one)
   ArrayList<PGraphics> buffers;
+  // the embroidery buffers to draw on
   ArrayList<PEmbroiderGraphics> ebuffers;
-  ArrayList<SingleCurve> curves;
+
+  // this is a convenience data structure, it is a flat version of table
+  ArrayList<SingleLine> lines;
+
+  // the radius used for the grid
   int RADIUS = 60;
-  int JOINT_RADIUS = 36; 
+
+  // the radius for drawing joints at (only used for pembroider buffers)
+  int JOINT_RADIUS = 36;
+  // the type of joint (square or round), again only used for pembroider buffers if we decide to go that route
   String jointType;
 
-  CurveTable(int rows, int cols) {
+  ////////////////////////// constructors //////////////////////////
+  LineTable(int rows, int cols) {
     this.rows = rows;
     this.cols = cols;
-    this.table = new SingleCurve[rows][cols][quadrants];
+    this.table = new SingleLine[rows][cols][quadrants];
     this.joints = new boolean[rows][cols];
-    println("made table rows: " + rows + ", cols: " + cols + ", quadrants " + quadrants);
 
     this.buffers = new ArrayList<PGraphics>();
     this.ebuffers = new ArrayList<PEmbroiderGraphics>();
-    this.curves = new ArrayList<SingleCurve>();
+    this.lines = new ArrayList<SingleLine>();
   }
 
   // if row = 0, items at col 0->cols-1;
   // if row = 0 items at cols cols->2*cols-1, etc
-  SingleCurve get(int row, int col, int quadrant) {
-    SingleCurve[][][] table = this.table;
+  SingleLine get(int row, int col, int quadrant) {
+    SingleLine[][][] table = this.table;
     if (table == null) {
       println("why is table null?");
-      this.table = new SingleCurve[this.rows][this.cols][this.quadrants];
+      this.table = new SingleLine[this.rows][this.cols][this.quadrants];
       return null;
     }
-    SingleCurve[][] cols = table[row];
-    SingleCurve[] quadrants = cols[col];
-    SingleCurve curve = quadrants[quadrant];
-    return curve;
+    SingleLine[][] cols = table[row];
+    SingleLine[] quadrants = cols[col];
+    SingleLine line = quadrants[quadrant];
+    return line;
   }
 
-
+  // this does the tiling to copy the tiled region throughout the rest of the grid
   void tile(int startRow, int rowDist, int startCol, int colDist, boolean x, boolean y) {
-    //println("tile " + startRow + "," + startCol + "," + rowDist + "," + colDist +"," + x + "," + y);
-    //println("[" + table.length +"][" + table[0].length +"]");
+    println("tile " + startRow + "," + startCol + "," + rowDist + "," + colDist +"," + x + "," + y);
+    println(this);
     // startx/starty is the grid coordinates of the top left of the tile
     // width is the width of the tile
     // height is the height of the tile
     // x is whether to tile in x direction
     // y is whether to tile in y direction
-    SingleCurve tile;
-    //println(marks);
-    //println(this);
+    SingleLine tile;
 
     // Loop through the tile region in each quadrant
     boolean joint;
-    for (int s=startRow; s<=startRow+rowDist; s++) {
-      for (int t=startCol; t<=startCol+colDist; t++) {
+    for (int s=startRow; s<=startRow+rowDist-1; s++) {
+      for (int t=startCol; t<=startCol+colDist-1; t++) {
         joint = joints[s][t];
         for (int q = 0; q<marks.quadrants; q++) {
-          tile = table[s][t][q];
+          tile = table[s][t][q]; // the tile to be copied is at gridpoint s, t in quadrant q
           if (tile != null) {
-            //println("copying tile: " + tile);
             // loop through the table, starting at a copy of the tile located at (0,0) and moving by tile size
-            for (int gridrow=0+s-startRow; gridrow+rowDist < marks.rows; gridrow+=rowDist) {
-              for (int gridcol=0+t-startCol; gridcol+colDist < marks.cols; gridcol+=colDist) {
-                //println("copying to " + gridcol + "," + gridrow);
+            for (int gridrow=1+s-startRow; gridrow+rowDist <= marks.rows; gridrow+=rowDist) {
+              for (int gridcol=1+t-startCol; gridcol+colDist <= marks.cols; gridcol+=colDist) {
                 if (tile != null && !interfaceBuffer.insideTiling(gridrow, gridcol)) {
-                  tile = tile.copy();
-                  tile.col = gridcol;
-                  tile.row = gridrow;
+                  SingleLine newtile = tile.copy();
+                  newtile.col(gridcol);
+                  newtile.row(gridrow);
+                  println("copying " + tile+ " to " + newtile);
                   delete(gridrow, gridcol, q);
-                  put(tile);
+                  put(newtile);
                   joints[gridrow][gridcol] = joint;
+                } else if (!interfaceBuffer.insideTiling(gridrow, gridcol)) {
+                  delete(gridrow, gridcol, q); // TODO: not working for some reason
                 }
               }
             }
@@ -744,6 +772,8 @@ class CurveTable {
         }
       }
     }
+    println(this);
+    updateAll();
   }
 
   ////// ////// ////// //////  HELPERS ////// ////// ////// ////// //////
@@ -755,19 +785,19 @@ class CurveTable {
     this.joints[row][col] = !this.joints[row][col];
   }
   
-  void put(SingleCurve curve) {
-    this.table[curve.row][curve.col][curve.quadrant] = curve;
-    this.curves.add(curve);
+  void put(SingleLine line) {
+    this.table[line.row][line.col][line.quadrant] = line;
+    this.lines.add(line);
   }
 
   void delete(int row, int col, int quadrant) {
-    SingleCurve curve = this.table[row][col][quadrant];
-    if (curve == null) return;
+    SingleLine line = this.table[row][col][quadrant];
+    if (line == null) return;
     this.table[row][col][quadrant] = null;
-    //println("curves: " + curves.size());
-    curves.remove(curve);
-    //println("curves: " + curves.size());
-    curve.clear();
+    //println("lines: " + lines.size());
+    lines.remove(line);
+    joints[row][col] = false;
+    //println("lines: " + lines.size());
   }
 
   void addBuffer(PGraphics buffer) {
@@ -788,24 +818,19 @@ class CurveTable {
 
   void updateAll() {
     for (PGraphics buffer : buffers) {
-      //buffer.beginShape();
       updateAll(buffer);
-      //buffer.endShape();
     }
 
     for (PEmbroiderGraphics ebuffer : ebuffers) {
-      //ebuffer.beginShape();
       updateAll(ebuffer);
-      //ebuffer.endShape();
     }
   }
 
   void updateAll(PEmbroiderGraphics ebuffer) {
     //println("======= Update All Onscreen " + this);
     ebuffer.beginComposite();
-    for (SingleCurve curve : curves) {
-      //System.out.println("curve at:" + curve);
-      curve.update(ebuffer);
+    for (SingleLine line : lines) {
+      line.update(ebuffer);
     }
     ebuffer.endComposite();
 
@@ -828,11 +853,10 @@ class CurveTable {
   }
 
   void updateAll(PGraphics buffer) {
+
+    // draw the lines
     buffer.beginShape();
-    for (SingleCurve curve : curves) {
-      //System.out.println("curve at:" + curve);
-      curve.update(buffer);
-    }
+    for (SingleLine line : lines) line.update(buffer);
     buffer.endShape();
     
     // overlay the joint fixtures
@@ -850,7 +874,7 @@ class CurveTable {
         }
       }
     }
-  }
+    }
 
   void clear() {
     //println("clearing table");
@@ -864,29 +888,24 @@ class CurveTable {
     cols = round((width-interfaceWidth)/RADIUS)+1;
     rows = round(height/RADIUS)+1;
 
-    for (SingleCurve curve : curves) {
-      //System.out.println("curve at:" + curve);
-      curve.clear();
-    }
-
-    this.table = new SingleCurve[rows][cols][quadrants];
+    this.table = new SingleLine[rows][cols][quadrants];
     this.joints = new boolean[rows][cols];
-    this.curves = new ArrayList<SingleCurve>();
+    this.lines = new ArrayList<SingleLine>();
     //println("made table rows: " + rows + ", cols: " + cols + ", quadrants " + quadrants);
   }
 
   String toString() {
     String ret = "";
     int i = 0;
-    for (SingleCurve[][] cols : this.table) {
+    for (SingleLine[][] cols : this.table) {
       ret += "q"+i + ":[";
       i += 1;
-      for (SingleCurve[] quadrants : cols) {
+      for (SingleLine[] quadrants : cols) {
         ret += "[";
-        for (SingleCurve curve : quadrants) {
-          if (curve != null) {
-            //System.out.println("curve at:" + curve);
-            ret += curve + ":" + joints[curve.row][curve.col] + ",";
+        for (SingleLine line : quadrants) {
+          if (line != null) {
+            //System.out.println("line at:" + line);
+            ret += line + ":" + joints[line.row][line.col] + ",";
           } else ret += ",";
         }
         ret +="],";
@@ -910,7 +929,7 @@ class CurveTable {
     for (int q = 0; q < quadrants; q++) {
       for (int row = rowStart; row <= rowEnd; row++) {
         for (int col = colStart; col <= colEnd; col++) {
-          SingleCurve cell = table[row][col][q];
+          SingleLine cell = table[row][col][q];
           if (cell != null) {
             JSONObject cellJSON = cell.toJSON();
             cells.setJSONObject(i, cellJSON);
@@ -939,7 +958,7 @@ class CurveTable {
     interfaceBuffer.setTiling(rowStart, rowEnd, colStart, colEnd);
     interfaceBuffer.mode(interfaceBuffer.TILE_REGION);
     for (int i = 0; i<cells.size(); i++) {
-      SingleCurve cell = curveFromJSON(cells.getJSONObject(i));
+      SingleLine cell = lineFromJSON(cells.getJSONObject(i));
       if (interfaceBuffer.insideTiling(cell.row, cell.col)) {
         marks.put(cell);
       } else println ("ERROR JSON had items outside tiling region specified in JSON object");
@@ -965,8 +984,8 @@ class Interface extends PGraphics {
   final String ROTATE = "Place and Rotate Lines";
   final String JOINT_CIRCLE = "Fix Joint (circle)";
   final String JOINT_SQUARE = "Fix Joint (square)";
-  final String CURVEIN = "Change Curve Inward";
-  final String CURVEOUT = "Change Curve Outward";
+  final String CURVEIN = "Curve Line Inward";
+  final String CURVEOUT = "Curve Line Outward";
 
   Group tiling;
   MyRange col_range;
@@ -1057,7 +1076,7 @@ class Interface extends PGraphics {
     click.setColorLabels(BLACK);
 
     tiling = cp5.addGroup("Tiling", INSET, 350);
-    col_range = new MyRange(cp5, "Column Start and End ", true);
+    col_range = new MyRange(cp5, "Row Start and End ", true);
     col_range.setGroup(tiling);
     col_range.setSize(interfaceWidth-INSET*2, ITEM_HEIGHT);
     col_range.setRange(1, marks.cols);
@@ -1068,7 +1087,7 @@ class Interface extends PGraphics {
     col_range.setPosition(0, SPACING);
     col_range.setColorCaptionLabel(BLACK);
 
-    row_range = new MyRange(cp5, "Row Start and End", true);
+    row_range = new MyRange(cp5, "Column Start and End", true);
     row_range.setGroup(tiling);
     row_range.setSize(interfaceWidth-INSET*2, ITEM_HEIGHT);
     row_range.setPosition(0, ITEM_HEIGHT*2+SPACING*2);
@@ -1181,7 +1200,7 @@ class Interface extends PGraphics {
   public void save() {
     E.optimize(); // slow, but very good and important
     E.printStats();
-    String outputFilePath = sketchPath("curveDemo" + fileNumber + ".dst");
+    String outputFilePath = sketchPath("lineDemo" + fileNumber + ".dst");
     E.setPath(outputFilePath);
     save(outputFilePath);
 
@@ -1192,7 +1211,7 @@ class Interface extends PGraphics {
     offscreenBuffer.dispose();
     offscreenBuffer.endDraw();
     fileNumber += 1;
-    String svgFilePath = sketchPath("curveDemo" + fileNumber + ".svg");
+    String svgFilePath = sketchPath("lineDemo" + fileNumber + ".svg");
     offscreenBuffer = createGraphics(width, height, SVG, svgFilePath);
     marks.addBuffer(offscreenBuffer);
     offscreenBuffer.beginDraw();
