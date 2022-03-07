@@ -1,4 +1,8 @@
 *.dst
 *.tif
 *.vp3
+*.svg
+*.autosave
+*.JSON
+*.jef
 .vscode/
