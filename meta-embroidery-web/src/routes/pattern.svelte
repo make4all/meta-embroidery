@@ -12,8 +12,8 @@
 	const padding = 1;
 	const scale = 3;
 
-	const repeat_x = Math.floor(width / cellSize);
-	const repeat_y = Math.floor(height / cellSize);
+	let repeat_x = Math.floor(width / cellSize);
+	let repeat_y = Math.floor(height / cellSize);
 
 	function traceDiagonal(
 		svg_element,
@@ -150,8 +150,11 @@
 
 	$: {
 		if (draw) {
+            draw.clear();
 			drawTwisty(draw, width, height, cellSize);
 		}
+        repeat_x = Math.floor(width / cellSize);
+        repeat_y = Math.floor(height / cellSize);
 	}
 </script>
 
