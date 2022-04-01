@@ -14,9 +14,6 @@
 	const repeat_x = Math.floor(options.width / options.cellSize);
 	const repeat_y = Math.floor(options.height / options.cellSize);
 
-	const diagonal_step_size = Math.sqrt(2) * options.cellSize;
-	const rectSize = 0.5;
-
 	function traceDiagonal(
 		svg_element,
 		offset: number,
@@ -32,7 +29,7 @@
 
 		let path_pts = [[x, y]];
 
-		while (x < end_x && x > 0 && y <= end_y) {
+		while (x <= end_x && x >= 0 && y <= end_y) {
 			if (direction === 'r') {
 				x += step_size / 2;
 				path_pts.push([x, y]);
@@ -51,15 +48,6 @@
 
 				y += step_size / 2;
 				path_pts.push([x, y]);
-                
-				console.log(
-					'x: ' + x + ' start_x: ' + start_x + ' end_x: ' + end_x,
-					x < end_x && x > start_x
-				);
-				console.log(
-					'y: ' + y + ' start_y: ' + start_y + ' end_y: ' + end_y,
-					y < end_y && y > start_y
-				);
 			}
 		}
 
@@ -70,10 +58,10 @@
 			.dmove(offset, offset);
 	}
 
-	onMount(() => {
-		draw = SVG(svg);
+    function drawTwisty(svg_element, options) {
+        const rectSize = 0.5;
 
-		// Draw boxes
+        // Draw boxes
 		for (let i = 0; i < repeat_y; i++) {
 			for (let j = 0; j < repeat_x; j++) {
 				const x = j * options.cellSize;
@@ -81,7 +69,7 @@
 
 				if (i % 2 === 0) {
 					if (j % 2 !== 0) {
-						draw
+						svg_element
 							.rect(rectSize * options.cellSize, rectSize * options.cellSize)
 							.move(x, y)
 							.rotate(45)
@@ -89,7 +77,7 @@
 					}
 				} else {
 					if (j % 2 === 0) {
-						draw
+						svg_element
 							.rect(rectSize * options.cellSize, rectSize * options.cellSize)
 							.move(x, y)
 							.rotate(45)
@@ -100,10 +88,11 @@
 		}
 
 		// Draw diagonal lines
+		// loop across top and generate lines going right and left
 		for (let i = 0; i < repeat_x; i++) {
 			if (i % 2 !== 0) {
 				traceDiagonal(
-					draw,
+					svg_element,
 					(rectSize * options.cellSize) / 2,
 					i * options.cellSize,
 					repeat_x * options.cellSize,
@@ -113,17 +102,53 @@
 					'r'
 				);
 				traceDiagonal(
-					draw,
+					svg_element,
 					(rectSize * options.cellSize) / 2,
 					i * options.cellSize,
 					repeat_x * options.cellSize,
 					0,
 					repeat_y * options.cellSize,
 					options.cellSize,
-					-1
+					'l'
 				);
 			}
 		}
+
+		for (let i = 0; i < repeat_y; i++) {
+			if (i % 2 !== 0) {
+				traceDiagonal(
+					svg_element,
+					(rectSize * options.cellSize) / 2,
+					0,
+					repeat_x * options.cellSize,
+					i * options.cellSize,
+					repeat_y * options.cellSize,
+					options.cellSize,
+					'r'
+				);
+            } else {
+				traceDiagonal(
+				    svg_element,
+				    (rectSize * options.cellSize) / 2,
+				    repeat_x * options.cellSize,
+				    repeat_x * options.cellSize,
+				    i * options.cellSize,
+				    repeat_y * options.cellSize,
+				    options.cellSize,
+				    "l"
+				);
+			}
+		}
+    }
+
+	onMount(() => {
+		draw = SVG(svg);
+
+        drawTwisty(draw, options);
+
+        $: {
+            drawTwisty(draw, options);
+        }
 	});
 </script>
 
