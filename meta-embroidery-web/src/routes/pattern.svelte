@@ -1,18 +1,19 @@
 <script lang="ts">
 	import { SVG } from '@svgdotjs/svg.js';
 	import { onMount } from 'svelte';
-	import type { OptionDefinition } from '$lib/utils';
 
-	export let options: OptionDefinition;
 	export let svg;
+	export let width: number;
+	export let height: number;
+	export let cellSize: number;
 
 	let draw;
 
 	const padding = 1;
 	const scale = 3;
 
-	const repeat_x = Math.floor(options.width / options.cellSize);
-	const repeat_y = Math.floor(options.height / options.cellSize);
+	const repeat_x = Math.floor(width / cellSize);
+	const repeat_y = Math.floor(height / cellSize);
 
 	function traceDiagonal(
 		svg_element,
@@ -58,19 +59,19 @@
 			.dmove(offset, offset);
 	}
 
-    function drawTwisty(svg_element, options) {
-        const rectSize = 0.5;
+	function drawTwisty(svg_element, w, h, cs) {
+		const rectSize = 0.5;
 
-        // Draw boxes
+		// Draw boxes
 		for (let i = 0; i < repeat_y; i++) {
 			for (let j = 0; j < repeat_x; j++) {
-				const x = j * options.cellSize;
-				const y = i * options.cellSize;
+				const x = j * cs;
+				const y = i * cs;
 
 				if (i % 2 === 0) {
 					if (j % 2 !== 0) {
 						svg_element
-							.rect(rectSize * options.cellSize, rectSize * options.cellSize)
+							.rect(rectSize * cs, rectSize * cs)
 							.move(x, y)
 							.rotate(45)
 							.opacity(0.5);
@@ -78,7 +79,7 @@
 				} else {
 					if (j % 2 === 0) {
 						svg_element
-							.rect(rectSize * options.cellSize, rectSize * options.cellSize)
+							.rect(rectSize * cs, rectSize * cs)
 							.move(x, y)
 							.rotate(45)
 							.opacity(0.5);
@@ -93,22 +94,22 @@
 			if (i % 2 !== 0) {
 				traceDiagonal(
 					svg_element,
-					(rectSize * options.cellSize) / 2,
-					i * options.cellSize,
-					repeat_x * options.cellSize,
+					(rectSize * cs) / 2,
+					i * cs,
+					repeat_x * cs,
 					0,
-					repeat_y * options.cellSize,
-					options.cellSize,
+					repeat_y * cs,
+					cs,
 					'r'
 				);
 				traceDiagonal(
 					svg_element,
-					(rectSize * options.cellSize) / 2,
-					i * options.cellSize,
-					repeat_x * options.cellSize,
+					(rectSize * cs) / 2,
+					i * cs,
+					repeat_x * cs,
 					0,
-					repeat_y * options.cellSize,
-					options.cellSize,
+					repeat_y * cs,
+					cs,
 					'l'
 				);
 			}
@@ -118,44 +119,46 @@
 			if (i % 2 !== 0) {
 				traceDiagonal(
 					svg_element,
-					(rectSize * options.cellSize) / 2,
+					(rectSize * cs) / 2,
 					0,
-					repeat_x * options.cellSize,
-					i * options.cellSize,
-					repeat_y * options.cellSize,
-					options.cellSize,
+					repeat_x * cs,
+					i * cs,
+					repeat_y * cs,
+					cs,
 					'r'
 				);
-            } else {
+			} else {
 				traceDiagonal(
-				    svg_element,
-				    (rectSize * options.cellSize) / 2,
-				    repeat_x * options.cellSize,
-				    repeat_x * options.cellSize,
-				    i * options.cellSize,
-				    repeat_y * options.cellSize,
-				    options.cellSize,
-				    "l"
+					svg_element,
+					(rectSize * cs) / 2,
+					repeat_x * cs,
+					repeat_x * cs,
+					i * cs,
+					repeat_y * cs,
+					cs,
+					'l'
 				);
 			}
 		}
-    }
+	}
 
 	onMount(() => {
 		draw = SVG(svg);
 
-        drawTwisty(draw, options);
-
-        $: {
-            drawTwisty(draw, options);
-        }
+		drawTwisty(draw, width, height, cellSize);
 	});
+
+	$: {
+		if (draw) {
+			drawTwisty(draw, width, height, cellSize);
+		}
+	}
 </script>
 
 <svg
-	width={(repeat_x + padding * 2) * options.cellSize * scale}
-	height={(repeat_y + padding * 2) * options.cellSize * scale}
-	viewBox="-{padding * options.cellSize} -{padding * options.cellSize} {(repeat_x + padding) *
-		options.cellSize} {(repeat_y + padding) * options.cellSize}"
+	width={(repeat_x + padding * 2) * cellSize * scale}
+	height={(repeat_y + padding * 2) * cellSize * scale}
+	viewBox="-{padding * cellSize} -{padding * cellSize} {(repeat_x + padding) *
+		cellSize} {(repeat_y + padding) * cellSize}"
 	bind:this={svg}
 />

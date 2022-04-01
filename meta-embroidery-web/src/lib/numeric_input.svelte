@@ -6,6 +6,6 @@
 </script>
 <label>
     {name}
-	<input type=number {value} {min} {max}>
-	<input type=range {value} {min} {max}>
+	<input type=number bind:value={value} {min} {max}>
+	<input type=range bind:value={value} {min} {max}>
 </label>
