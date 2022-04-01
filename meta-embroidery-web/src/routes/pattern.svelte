@@ -32,17 +32,26 @@
 
 		let path_pts = [[x, y]];
 
-		if (direction === 'r') {
-			while (x <= end_x && x >= start_x && y <= end_y && y >= start_y) {
+		while (x < end_x && x > 0 && y <= end_y) {
+			if (direction === 'r') {
+				x += step_size / 2;
+				path_pts.push([x, y]);
+
+				y += step_size;
+				path_pts.push([x, y]);
+
+				x += step_size / 2;
+				path_pts.push([x, y]);
+			} else {
 				y += step_size / 2;
 				path_pts.push([x, y]);
 
-				x += step_size * direction;
+				x -= step_size;
 				path_pts.push([x, y]);
 
 				y += step_size / 2;
 				path_pts.push([x, y]);
-
+                
 				console.log(
 					'x: ' + x + ' start_x: ' + start_x + ' end_x: ' + end_x,
 					x < end_x && x > start_x
@@ -101,7 +110,7 @@
 					0,
 					repeat_y * options.cellSize,
 					options.cellSize,
-					1
+					'r'
 				);
 				traceDiagonal(
 					draw,
