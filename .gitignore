@@ -6,3 +6,4 @@
 *.JSON
 *.jef
 .vscode/
+.DS_Store
