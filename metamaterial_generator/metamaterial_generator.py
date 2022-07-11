@@ -2,18 +2,20 @@ from cmath import rect
 from sqlite3 import enable_shared_cache
 from turtle import circle
 from svgpathtools import Path, Line, Arc, bbox2path, parse_path, disvg, wsvg
+from datetime import date
 
 class Generator:
     """
     CREATE a metamaterial SVG
     """
     
-    def __init__(self, w1=12, h=18, w2=24):
+    def __init__(self, w1=12, h=18, w2=24, output="output"):
         """Stores parameters for the zigzag height and width and sets up the dictionary of shapes"""
         self.shapes = {}
         self.short_zigzag_width = w1
         self.zigzag_height = h
         self.long_zigzag_width = w2
+        self.output_dir = output
 
     def add_path(self, name, path):
         """ Adds a path to the dictionary """
@@ -108,7 +110,7 @@ class Generator:
         paths = []
         for name in names:
             paths += self.shapes[name]
-        wsvg(paths=paths, filename=f"output/{filename}_{self.short_zigzag_width}_{self.zigzag_height}_{self.long_zigzag_width}.svg", baseunit=units)
+        wsvg(paths=paths, filename=f"{self.output_dir}/{filename}_{self.short_zigzag_width}_{self.zigzag_height}_{self.long_zigzag_width}_{date.today().isoformat()}.svg", baseunit=units)
     
     def make_zigzag_column(self, zigzag_width, zigzag_height, total_length, start_x, start_y):
         """generates a column of zigzags(with given width and height) at a specific coordinate (start_x, start_y) of a certain length(total_length)"""
