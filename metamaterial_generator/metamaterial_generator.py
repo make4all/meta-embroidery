@@ -30,10 +30,13 @@ class Generator:
         return self.shapes[name]
 
     def add_line(self, name, start, end):
-        """ Adds a rectangle to the dictionary """
-        self.shapes[name] = self.make_zigzag_rectangle(self.short_zigzag_width,
-                                                       self.zigzag_height,
-                                                       self.long_zigzag_width, w, h)
+        """ Adds a line to the dictionary """
+        self.shapes[name] = Line(start, end)
+        return self.shapes[name]
+
+    def add_line(self, name, x1, y1, x2, y2):
+        """ Adds a line to the dictionary """
+        self.shapes[name] = Line(x1+1j*y1, x2+1j*y2)
         return self.shapes[name]
 
 
