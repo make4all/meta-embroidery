@@ -48,13 +48,13 @@ class Generator:
         # need to tie the start and end to the radius
         self.shapes[name] = circle
         return circle
-        
+
     def scale_shape(self, name, fraction):
         """Scales an existing shape (or every path in a shape) to a fraction of its current size"""
         # add ability to scale differently in X and Y and to choose scale origin
         shapes = self.shapes[name]
         if (not isinstance(shapes, list)):
-            shapes = [shape]
+            shapes = [shapes]
         scaled_shapes = []
         for shape in shapes:
             scaled_shapes += shape.scaled(fraction)
@@ -64,10 +64,11 @@ class Generator:
         """ Moves a shapy (or every path in a shape) by the complex coordinates given"""
         shapes = self.shapes[name]
         if (not isinstance(shapes, list)):
-            shapes = [shape]
+            shapes = [shapes]
         moved_shapes = []
         for shape in shapes:
             moved_shapes += shape.translated(move_by)
+        self.shapes[name] = moved_shapes
 
     def fill_shape_zigzag(self, name, rotation, border):
         """Fills a shape with zigzags"""
