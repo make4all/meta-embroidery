@@ -48,7 +48,7 @@ class Generator:
         # need to tie the start and end to the radius
         self.shapes[name] = circle
         return circle
-
+        
     def scale_shape(self, name, fraction):
         """Scales an existing shape (or every path in a shape) to a fraction of its current size"""
         # add ability to scale differently in X and Y and to choose scale origin
