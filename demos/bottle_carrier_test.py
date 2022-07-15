@@ -7,12 +7,12 @@ generator = Generator()
 # replacing this with a simple rect...
 generator.add_path('handle','M 0 0, h 90, v 30, h -90, z')
 #generator.move_shape('handle',0+70j)
-generator.fill_shape_zigzag('handle',0, border=True)
+generator.fill_shape_zigzag('handle',0, border=2)
 generator.make_svg(['handle'], 'handle', 'mm')
 
 
 circle = generator.add_circle('circle', 100+50j)
-generator.fill_shape_zigzag('circle', 30, border=True)
+generator.fill_shape_zigzag('circle', 30, border=2)
 
 ########### SLEEVE ######################################
 generator.add_path('sleeve','M 0 0, h 175, v 60, h -175, z')

@@ -24,7 +24,6 @@ rfc3986==2.0.0
 rich==12.4.4
 scipy==1.8.1
 six==1.16.0
-svgpathtools==1.5.1
 svgwrite==1.4.2
 twine==4.0.1
 urllib3==1.26.10

@@ -3,6 +3,7 @@ from sqlite3 import enable_shared_cache
 from turtle import circle
 from svgpathtools import Path, Line, Arc, bbox2path, parse_path, disvg, wsvg
 from datetime import date
+import numpy as np
 
 class Generator:
     """
@@ -39,7 +40,6 @@ class Generator:
         self.shapes[name] = Line(x1+1j*y1, x2+1j*y2)
         return self.shapes[name]
 
-
     def add_shape(self, name, shape):
         """ Adds a shape to the dictionary """
         self.shapes[name] = shape
@@ -56,6 +56,7 @@ class Generator:
     def scale_shape(self, name, fraction):
         """Scales an existing shapes to a fraction of its current size"""
         self.shapes[name] = self.shapes[name].scaled(fraction)
+        return self.shapes[name]
 
     def scale_shapes(self, names, fraction):
         """Scales an array of existing shapes to a fraction of their current size """
@@ -108,12 +109,14 @@ class Generator:
             bby2 = max(box1[3],box2[3], bby2) 
         return (bbx1, bby1, bbx2, bby2)
     
-    def make_svg(self, names, filename, units):
+    def make_svg(self, names, filename, units, svg_attributes=None, attributes=None):
         """Saves a list of shapes as an svg"""
         paths = []
         for name in names:
             paths += self.shapes[name]
-        wsvg(paths=paths, filename=f"{self.output_dir}/{filename}_{self.short_zigzag_width}_{self.zigzag_height}_{self.long_zigzag_width}_{date.today().isoformat()}.svg", baseunit=units)
+
+        #if (len(attributes) is 0): attributes = np.full(len(names)+1, {})
+        wsvg(paths=paths, filename=f"{self.output_dir}/{filename}_{self.short_zigzag_width}_{self.zigzag_height}_{self.long_zigzag_width}_{date.today().isoformat()}.svg", baseunit=units, svg_attributes=svg_attributes, attributes=attributes)
     
     def make_zigzag_column(self, zigzag_width, zigzag_height, total_length, start_x, start_y):
         """generates a column of zigzags(with given width and height) at a specific coordinate (start_x, start_y) of a certain length(total_length)"""
@@ -141,7 +144,7 @@ class Generator:
             start_x = start_x+long_zigzag_width-short_zigzag_width
         return rectangle_of_zigzags
 
-    def crop_and_rotate_to_shape(self, shape_path, rectangle_paths, shape_outline, rotate_amt):
+    def crop_and_rotate_to_shape(self, shape_path, rectangle_paths, border, rotate_amt):
         """fills a given shape (path outline) with auxetic material. You can choose to add a keep the shape outline or remove it and also say what rotation the auxetic material should have (where 0 rotation is vertical columns of zigzags)"""
         cropped_paths = []
         intersections = []
@@ -169,10 +172,48 @@ class Generator:
             crosses = Path(Line(pt, pt_outside_shape)).intersect(shape_path)
             if len(crosses) % 2:
                 final_version.append(path)
-        if shape_outline:
+        if border:
             final_version.append(shape_path)
+            final_version.append(self.offset_curve(shape_path, border, steps=1000))
+            
             #for i in rectangle_paths:
             #final_version.append(i.rotated(rotate_amt, rotate_around_pt))
         return final_version
 
-    
+    def offset_curve(self, path, offset_distance, steps=1000):
+        """Takes in a Path object, `path`, and a distance,
+        `offset_distance`, and outputs an piecewise-linear approximation 
+        of the 'parallel' offset curve."""
+        offpath = f"M "
+        nls = []
+        for seg in path:
+            ct = 1
+            for k in range(steps):
+                t = k / steps
+                offset_vector = offset_distance * seg.normal(t)
+                offpath += f" {seg.point(t).real}, {seg.point(t).imag}"
+                nl = Line(seg.point(t), seg.point(t) + offset_vector)
+                nls.append(nl)
+        connect_the_dots = [Line(nls[k].end, nls[k+1].end) for k in range(len(nls)-1)]
+        if path.isclosed():
+            connect_the_dots.append(Line(nls[-1].end, nls[0].end))
+            offpath += " Z"
+        #offset_path = Path(*connect_the_dots)
+        offset_path = parse_path(offpath)
+        return offset_path
+
+    def fill_offset_curve(self, shape, offset_distance, steps=1000):
+        """Takes in a Path object, `path`, and a distance,
+        `offset_distance`, and outputs an piecewise-linear approximation 
+        of the 'parallel' offset curve."""
+        path = self.shapes[shape]
+        
+        offset_path = self.offset_curve(path, offset_distance, steps)
+        path.append(offset_path)
+        #print(offset_path)
+        #path = Path(*offset_path, *path)
+        #path = Path(path.d())
+        self.shapes[shape] = path
+        
+        return path
+        #return offset_path

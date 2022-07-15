@@ -4,7 +4,7 @@ generator = Generator()
 generator.add_path('star','M 24 0 l 6 17 h 18 l -14 11 l 5 17 l -15 -10 l -15 10 l 5 -17 l -14 -11 h 18 Z')
 
 star = generator.scale_shape('star', 2.5)
-heart = generator.fill_shape_zigzag('star', 45, border=True)
+heart = generator.fill_shape_zigzag('star', 45, border=2)
 generator.make_svg(['star'], 'star', 'mm')
 
 
