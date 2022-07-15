@@ -11,11 +11,9 @@ This library is used to generate metamaterial embroidered lace objects.
 ### Install necessary packages
 ```pip3 install -r requirements.txt```
 
-### Setup our modified version of svgpathtools
-```cd svgpathtools```
+### If you want to set our code up as a library
 ```python3 setup.py bdist_wheel```
-```pip3 install dist/svgpathtools-1.5.1-py2.py3-none-any.whl```
-```pip3 uninstall svgpathtools```
+```pip3 install dist/metamaterial_generator-0.1.0-py3-none-any.whl```
 
 ### Run the demos
 You can run one at a time

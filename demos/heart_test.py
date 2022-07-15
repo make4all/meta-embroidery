@@ -10,5 +10,5 @@ border = generator.scale_shape('border',.5)
 #print(border)
 #print(f"border: {border.d()}")
 #generator.make_svg(['heart','border'], 'heart', 'mm', attributes=[{},{'fill-rule':'even-odd'}])
-generator.make_svg(['border','heart'], 'heart', 'mm', attributes=[{'fill-rule':'even-odd'}])
+generator.make_svg(['border','heart'], 'heart', 'mm')
 
