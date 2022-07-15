@@ -50,35 +50,17 @@ class Generator:
         """ Adds a circle to the dictionary"""
         circle = Path(Arc(start=0 + 120j, rotation=0, radius=radius,large_arc=1, sweep=180, end=200 + 120j), Arc(start=200 + 120j, rotation=180, radius=radius,large_arc=1,sweep=180, end=0 + 120j))
         
-        self.shapes[name]  = circle;
-        return circle;
+        self.shapes[name] = circle
+        return circle
         
     def scale_shape(self, name, fraction):
         """Scales an existing shapes to a fraction of its current size"""
         self.shapes[name] = self.shapes[name].scaled(fraction)
         return self.shapes[name]
 
-    def scale_shapes(self, names, fraction):
-        """Scales an array of existing shapes to a fraction of their current size """
-        for name in names: 
-            scale_shape(shape, fraction)
-        
-
     def move_shape(self, name, move_by):
-        """ Moves a shapy by move_by """
+        """ Moves a shape by move_by """
         self.shapes[name].translated(move_by)
-
-    def move_shapes(self, names, move_by):
-        """ Moves an array of shapes by move_by """
-        for name in names:
-            move_shape(name);
-        
-    def move_paths(self, paths, move_by):
-        """moves every path in a list by the complex coordinates given"""
-        moved_paths = []
-        for path in paths:
-            moved_paths.append(self.shapes[path].translated(move_by))
-        return moved_paths
 
     def fill_shape_zigzag(self, name, rotation, border):
         """Fills a shape with zigzags"""
