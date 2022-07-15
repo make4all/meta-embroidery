@@ -1,9 +1,6 @@
-from cmath import rect
-from sqlite3 import enable_shared_cache
-from turtle import circle
-from svgpathtools import Path, Line, Arc, bbox2path, parse_path, disvg, wsvg
+from cmath import sqrt
+from svgpathtools import Path, Line, Arc, bbox2path, parse_path, wsvg
 from datetime import date
-import numpy as np
 
 
 class Generator:
@@ -18,10 +15,13 @@ class Generator:
         self.zigzag_height = h
         self.long_zigzag_width = w2
         self.output_dir = output
+        self.filled_shapes = {}
+        self.filled_rect = None
 
     def add_path(self, name, path):
         """ Adds a path to the dictionary. Path should be specified using a d string and is then parsed. """
-        self.shapes[name] = parse_path(path)
+        path = parse_path(path)
+        self.shapes[name] = path
 
     def add_shape(self, name, shape):
         """ Adds a shape to the dictionary, specified as a d string"""
@@ -29,9 +29,7 @@ class Generator:
 
     def add_rect(self, name, w, h):
         """ Adds a rectangle to the dictionary"""
-        self.shapes[name] = self.make_zigzag_rectangle(self.short_zigzag_width,
-                                                       self.zigzag_height,
-                                                       self.long_zigzag_width, w, h)
+        self.add_path(name, f"M 0 0 h {w} v {h} h {-w} Z")
 
     def add_line(self, name, start, end):
         """ Adds a line to the dictionary """
@@ -52,69 +50,46 @@ class Generator:
     def scale_shape(self, name, fraction):
         """Scales an existing shape (or every path in a shape) to a fraction of its current size"""
         # add ability to scale differently in X and Y and to choose scale origin
-        shapes = self.shapes[name]
-        if (not isinstance(shapes, list)):
-            shapes = [shapes]
-        scaled_shapes = []
-        for shape in shapes:
-            scaled_shapes += shape.scaled(fraction)
-        self.shapes[name] = scaled_shapes
+        shape = self.shapes[name]
+        self.shapes[name] = shape.scaled(fraction)
 
     def move_shape(self, name, move_by):
         """ Moves a shapy (or every path in a shape) by the complex coordinates given"""
-        shapes = self.shapes[name]
-        if (not isinstance(shapes, list)):
-            shapes = [shapes]
-        moved_shapes = []
-        for shape in shapes:
-            moved_shapes += shape.translated(move_by)
-        self.shapes[name] = moved_shapes
+        shape = self.shapes[name]
+        self.shapes[name] = shape.translated(move_by)
 
     def fill_shape_zigzag(self, name, rotation, border):
         """Fills a shape with zigzags"""
         # find bounding box of shape to be filled
-        bbx = self.shape_bbx(name)
+        bbx = self.shapes[name].bbox()
         # find longest side of bounding box
-        longest_side = max(bbx[3]-bbx[1], bbx[2]-bbx[0])
+        xlength = bbx[1]-bbx[0]
+        ylength = int(bbx[3]-bbx[2])
+        diagonal = sqrt(xlength*xlength+ylength*ylength).real
+        print(diagonal)
+        self.move_shape(name, diagonal/4+diagonal/4*1j)
         # make a rectangle that is as large as the bounding box
         rect = self.make_zigzag_rectangle(self.short_zigzag_width, self.zigzag_height, self.long_zigzag_width,
-                                          longest_side, longest_side)
+                                          diagonal, diagonal)
         # move the shape to the origin (broken?)
-        shape = self.shapes[name].translated(longest_side/2)
+        #shape = self.shapes[name].translated(longest_side/2)
+        shape = self.shapes[name]
         # crop and rotate
         rotated_rect = self.crop_and_rotate_to_shape(
             shape, rect, border, rotation)
         # save
-        self.shapes[name] = rotated_rect
+        self.filled_shapes[name] = rotated_rect
+        self.move_shape(name, -diagonal/4-diagonal/4*1j)
         return rotated_rect
 
-    def shape_bbx(self, name):
-        """Calculates the bounding box for a shape """
-        shape = self.shapes[name]
-
-        bbx1 = 0
-        bby1 = 0
-        bbx2 = 0
-        bby2 = 0
-
-        for i, (sa, sb) in enumerate(shape.joints()):
-            # loop through all the paths in shape
-            # find the bounding box of each path
-            box1 = sa.bbox()
-            box2 = sb.bbox()
-            # save the smallest top left position
-            bbx1 = min(box1[0], box2[0], bbx1)
-            bbx2 = max(box1[2], box2[2], bbx2)
-            # and the largest bottom right position
-            bby1 = min(box1[1], box2[1], bby1)
-            bby2 = max(box1[3], box2[3], bby2)
-        return (bbx1, bby1, bbx2, bby2)
-
-    def make_svg(self, names, filename, units, svg_attributes=None, attributes=None):
+    def make_svg(self, names, filled_names, filename, units, svg_attributes=None, attributes=None):
         """Saves a list of shapes as an svg"""
         paths = []
         for name in names:
             paths += self.shapes[name]
+
+        for name in filled_names:
+            paths += self.filled_shapes[name]
 
         #if (len(attributes) is 0): attributes = np.full(len(names)+1, {})
         wsvg(paths=paths, filename=f"{self.output_dir}/{filename}_{self.short_zigzag_width}_{self.zigzag_height}_{self.long_zigzag_width}_{date.today().isoformat()}.svg",
@@ -170,10 +145,10 @@ class Generator:
                     continue
                 else:
                     cropped_paths.append(rotated_path.cropped(pt, T1))
-                    pt = T1
-                    final_version = []
-                    points = []
-                    points.append(pt_outside_shape)
+                pt = T1
+        final_version = []
+        points = []
+        points.append(pt_outside_shape)
         for path in cropped_paths:
             pt = path.point(0.5)
             crosses = Path(Line(pt, pt_outside_shape)).intersect(shape_path)
@@ -219,10 +194,12 @@ class Generator:
 
         offset_path = self.offset_curve(path, offset_distance, steps)
         path.append(offset_path)
-        # print(offset_path)
         #path = Path(*offset_path, *path)
         #path = Path(path.d())
         self.shapes[shape] = path
 
         return path
         # return offset_path
+
+    def print(self, name, text):
+        print(f"{text}: {self.shapes[name]}")
