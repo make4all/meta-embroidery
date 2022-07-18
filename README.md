@@ -22,6 +22,16 @@ You can run one at a time
 Or you can run them all at once:
 ```python3 setup.py pytest```
 
+### Run the interface for the first time
+```cd interface```
+```nodeenv -p```
+```yarn add parcel```
+```npx parcel build index.html```
+```npx parcel index.html```
+
+At that point it should be running at http://localhost:1234
+
+
 ## Documentation
 Output files will show up in output.py and be labeled with the width and height of the zigzags and the current date.
 

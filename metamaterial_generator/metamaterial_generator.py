@@ -16,7 +16,8 @@ class Generator:
         self.long_zigzag_width = w2
         self.output_dir = output
         self.filled_shapes = {}
-        self.filled_rect = None
+        self.default_shape_name = 'rect'
+        self.default_fill_name = 'zigzag'
 
     def add_path(self, name, path):
         """ Adds a path to the dictionary. Path should be specified using a d string and is then parsed. """
@@ -26,6 +27,12 @@ class Generator:
     def add_shape(self, name, shape):
         """ Adds a shape to the dictionary, specified as a d string"""
         self.shapes[name] = shape
+
+    def set_default_shape_name(self, name):
+        default_shape_name = name
+
+    def set_default_fill_name(self, name):
+        default_fill_name = name
 
     def add_rect(self, name, w, h):
         """ Adds a rectangle to the dictionary"""
@@ -53,10 +60,23 @@ class Generator:
         shape = self.shapes[name]
         self.shapes[name] = shape.scaled(fraction)
 
-    def move_shape(self, name, move_by):
-        """ Moves a shapy (or every path in a shape) by the complex coordinates given"""
+    def translate_shape(self, name, translate):
+        """ Translate a shapy (or every path in a shape) by the complex coordinates given"""
         shape = self.shapes[name]
-        self.shapes[name] = shape.translated(move_by)
+        self.shapes[name] = shape.translated(translate)
+
+    def move_to_origin(self, name, topleft=True, middle=False):
+        """Moves the shape to the orgin. If topleft, move the top left of the bounding box
+           to the origin, otherwise move the middle to the orgiin."""
+        bbx = self.shapes[name].bbox()
+        translate = -bbx[1]-1j*bbx[2]
+
+        if middle:
+            xlength = bbx[1]-bbx[0]
+            ylength = int(bbx[3]-bbx[2])
+            translate = translate - xlength/2-1j*ylength/2
+
+        self.translate_shape(name, middle)
 
     def fill_shape_zigzag(self, name, rotation, border):
         """Fills a shape with zigzags"""
@@ -67,36 +87,40 @@ class Generator:
         ylength = int(bbx[3]-bbx[2])
         diagonal = sqrt(xlength*xlength+ylength*ylength).real
         print(diagonal)
-        self.move_shape(name, diagonal/4+diagonal/4*1j)
+        self.translate_shape(name, diagonal/4+diagonal/4*1j)
         # make a rectangle that is as large as the bounding box
         rect = self.make_zigzag_rectangle(self.short_zigzag_width, self.zigzag_height, self.long_zigzag_width,
                                           diagonal, diagonal)
         # move the shape to the origin (broken?)
-        #shape = self.shapes[name].translated(longest_side/2)
+        # shape = self.shapes[name].translated(longest_side/2)
         shape = self.shapes[name]
         # crop and rotate
         rotated_rect = self.crop_and_rotate_to_shape(
             shape, rect, border, rotation)
         # save
         self.filled_shapes[name] = rotated_rect
-        self.move_shape(name, -diagonal/4-diagonal/4*1j)
+        self.translate_shape(name, -diagonal/4-diagonal/4*1j)
         return rotated_rect
 
     def make_svg(self, names, filled_names, filename, units, svg_attributes=None, attributes=None):
         """Saves a list of shapes as an svg"""
         paths = []
         for name in names:
-            paths += self.shapes[name]
+            path = self.shapes[name]
+            #self.print(path.bbox(), name)
+            paths += path
 
         for name in filled_names:
-            paths += self.filled_shapes[name]
+            path = self.filled_shapes[name]
+            #self.print(path.bbox(), name)
+            paths += path
 
-        #if (len(attributes) is 0): attributes = np.full(len(names)+1, {})
+        # if (len(attributes) is 0): attributes = np.full(len(names)+1, {})
         wsvg(paths=paths, filename=f"{self.output_dir}/{filename}_{self.short_zigzag_width}_{self.zigzag_height}_{self.long_zigzag_width}_{date.today().isoformat()}.svg",
              baseunit=units, svg_attributes=svg_attributes, attributes=attributes)
 
     def make_zigzag_column(self, zigzag_width, zigzag_height, total_length, start_x, start_y):
-        """generates a column of zigzags(with given width and height) at a specific coordinate (start_x, start_y) of a certain length(total_length)"""
+        """generates a column of zigzags(with given width and height) at a specific coordinate(start_x, start_y) of a certain length(total_length)"""
         path = Path()
         x = start_x
         y = start_y
@@ -110,7 +134,7 @@ class Generator:
         return path
 
     def make_zigzag_rectangle(self, short_zigzag_width, zigzag_height, long_zigzag_width, rectangle_width, rectangle_height):
-        """makes a rectangle out of small and large zigzag columns at 0,0 that is the given size. basically generates the base auxetic material pattern"""
+        """makes a rectangle out of small and large zigzag columns at 0, 0 that is the given size. basically generates the base auxetic material pattern"""
         num_repeats = int(
             rectangle_width/(long_zigzag_width - short_zigzag_width) + 1)
         rectangle_of_zigzags = []
@@ -126,7 +150,7 @@ class Generator:
         return rectangle_of_zigzags
 
     def crop_and_rotate_to_shape(self, shape_path, rectangle_paths, border, rotate_amt):
-        """fills a given shape (path outline) with auxetic material. You can choose to add a keep the shape outline or remove it and also say what rotation the auxetic material should have (where 0 rotation is vertical columns of zigzags)"""
+        """fills a given shape(path outline) with auxetic material. You can choose to add a keep the shape outline or remove it and also say what rotation the auxetic material should have(where 0 rotation is vertical columns of zigzags)"""
         cropped_paths = []
         intersections = []
         xmin, xmax, ymin, ymax = shape_path.bbox()
@@ -160,12 +184,12 @@ class Generator:
                 shape_path, border, steps=1000))
 
             # for i in rectangle_paths:
-            #final_version.append(i.rotated(rotate_amt, rotate_around_pt))
+            # final_version.append(i.rotated(rotate_amt, rotate_around_pt))
         return final_version
 
     def offset_curve(self, path, offset_distance, steps=1000):
         """Takes in a Path object, `path`, and a distance,
-        `offset_distance`, and outputs an piecewise-linear approximation 
+        `offset_distance`, and outputs an piecewise-linear approximation
         of the 'parallel' offset curve."""
         offpath = f"M "
         nls = []
@@ -182,20 +206,20 @@ class Generator:
         if path.isclosed():
             connect_the_dots.append(Line(nls[-1].end, nls[0].end))
             offpath += " Z"
-        #offset_path = Path(*connect_the_dots)
+        # offset_path = Path(*connect_the_dots)
         offset_path = parse_path(offpath)
         return offset_path
 
     def fill_offset_curve(self, shape, offset_distance, steps=1000):
         """Takes in a Path object, `path`, and a distance,
-        `offset_distance`, and outputs an piecewise-linear approximation 
+        `offset_distance`, and outputs an piecewise-linear approximation
         of the 'parallel' offset curve."""
         path = self.shapes[shape]
 
         offset_path = self.offset_curve(path, offset_distance, steps)
         path.append(offset_path)
-        #path = Path(*offset_path, *path)
-        #path = Path(path.d())
+        # path = Path(*offset_path, *path)
+        # path = Path(path.d())
         self.shapes[shape] = path
 
         return path
