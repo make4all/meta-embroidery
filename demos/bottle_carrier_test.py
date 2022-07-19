@@ -6,7 +6,7 @@ generator = Generator()
 # handle is now output as a separate file. Could consider
 # replacing this with a simple rect...
 generator.add_path('handle', 'M 0 0, h 90, v 30, h -90, z')
-# generator.move_shape('handle',0+70j)
+# generator.translate('handle',0+70j)
 generator.fill_shape_zigzag('handle', 0, border=2)
 generator.make_svg([], ['handle'], 'handle', 'mm')
 
