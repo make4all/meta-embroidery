@@ -2,6 +2,7 @@
 .Python
 __pycache__
 demos/__pycache__/
+output/
 venv/
 build/
 develop-eggs/
@@ -23,6 +24,7 @@ MANIFEST
 *.dst
 *.tif
 *.vp3
+*.svg
 *.autosave
 *.JSON
 *.jef

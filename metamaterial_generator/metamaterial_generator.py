@@ -24,6 +24,14 @@ class Generator:
         # the width of the long zigzag
         self.long_zigzag_width = w2
 
+        #lozenge grid infill only
+        self.a = 43/5
+        self.b = 29/5
+        self.c = 84.2/5
+        self.y_offset = 1/5
+        self.d = 13.3/5
+        self.e = 56/5
+
         # the default output directory
         self.output_dir = output
 
@@ -91,6 +99,57 @@ class Generator:
 
         self.translate_shape(name, middle)
 
+    def move_new_location(self,name,xnew,ynew,middle=True):
+        bbx = self.shapes[name].bbox()
+
+        translate = -bbx[1]-1j*bbx[2]
+
+        if middle:
+            translate = translate - xnew -1j*ynew
+
+        self.translate_shape(name,middle)
+
+    #lozenge grid auxetic fill
+    def fill_shape_lozenge(self,name, rotation, border):
+        shape_path = self.shapes[name]
+        bbx = shape_path.bbox()
+        #find longest side of bounding box
+        xlength = bbx[1] - bbx[0]
+        ylength = int(bbx[3] - bbx[2])
+        diagonal = sqrt(xlength * xlength + ylength * ylength).real + 0.2
+        print(diagonal)
+
+        # diagonal/2 is the center of the rectangle;
+        # bbx[0]+xlength/2 is the center of the shape
+        # subtract to figure out how much to translate
+        x_translate = (bbx[0] + xlength / 2) - diagonal / 2
+        y_translate = 1j * ((bbx[2] + ylength / 2) - diagonal / 2)
+
+        # make a rectangle that is as large as the bounding box
+        rect = self.make_lozenge_rectangle(self.a, self.b, self.y_offset, self.c, self.d,self.e,
+                                          xlength, ylength)
+
+        # rotate the rectangle and translate to the center of the shape
+        rotated_rect = []
+        for path in rect:
+            if (rotation > 0):
+                path = path.rotated(rotation, diagonal / 2 + 1j * diagonal / 2)
+            # calculate the amount to translate in x as the upper left corner
+            # of this path minus the upper left corner of the shape's bounding box
+            path = path.translated(x_translate + y_translate)
+            rotated_rect.append(path)
+
+        # call crop to shape
+        shape = self.crop_to_shape(shape_path, rotated_rect)
+
+        # add border if needed
+        if border:
+            shape.append(shape_path)
+
+        # save in filled_shapes
+        self.filled_shapes[name] = shape
+
+
     def fill_shape_zigzag(self, name, rotation, border):
         """Fills a shape with zigzags. You can choose to add a keep the shape outline or remove it
            and also say what rotation the auxetic material should have(where 0 rotation is vertical columns of zigzags)"""
@@ -149,6 +208,78 @@ class Generator:
         # if (len(attributes) is 0): attributes = np.full(len(names)+1, {})
         wsvg(paths=paths, filename=f"{self.output_dir}/{filename}_{self.short_zigzag_width}_{self.zigzag_height}_{self.long_zigzag_width}_{date.today().isoformat()}.svg",
              baseunit=units, svg_attributes=svg_attributes, attributes=attributes)
+
+    def make_lozenge_column(self,a,b,d,e,total_length,start_x,start_y):
+        path = Path()
+        x = start_x
+        y = start_y
+
+        num_repeats = int(total_length / 2 * a + 1)
+
+        for i in range(num_repeats):
+            path.append(Line(x+e +y*1j, x+e+ (y+a/2)*1j))
+            path.append(Line(x+e + (y+a/2)*1j, x+e-b + (y+a/2)*1j))
+            path.append(Line(x+e-b + (y+a/2)*1j, x+e-b + (y+3/2*a)*1j))
+            path.append(Line(x+e-b + (y+3/2*a)*1j, x+e + (y+3/2*a)*1j))
+            path.append(Line(x+e + (y+3/2*a)*1j, x+e + (y+2*a)*1j))
+            y = y+2*a
+        return path
+
+    def make_lozenge_row(self,a,b,total_length,start_x,start_y):
+        path = Path()
+        x = start_x
+        y = start_y
+
+        num_repeats = int(total_length/2*a + 1)
+
+        for i in range(num_repeats):
+            path.append(Line(x+y*1j, x+a/2+y*1j))
+            path.append(Line(x+a/2+y*1j, x+a/2+(y+b)*1j))
+            path.append(Line(x+a/2+(y+b)*1j, x+3/2*a+(y+b)*1j))
+            path.append(Line(x+3/2*a + (y+b)*1j, x+3/2*a + y*1j))
+            path.append(Line(x+3/2*a + y*1j, x+2*a + y*1j))
+            x = x+2*a
+        return path
+
+    def make_lozenge_row_flipped(self,a,b,total_length,start_x,start_y):
+        path = Path()
+        x = start_x
+        y = start_y
+
+        num_repeats = int(total_length/2*a + 1)
+
+        for i in range(num_repeats):
+            path.append(Line(x+(y+b)*1j, x+a/2 + (y+b)*1j))
+            path.append(Line(x+a/2 + (y+b)*1j, x+a/2 + y*1j))
+            path.append(Line(x+a/2 + y*1j, x+3/2*a + y*1j))
+            path.append(Line(x+3/2*a + y*1j, x+3/2*a + (y+b)*1j))
+            path.append(Line(x+3/2*a + (y+b)*1j, x+2*a + (y+b)*1j))
+            x = x + 2 * a
+        return path
+
+    def make_lozenge_rectangle(self, a, b, y_offset, c, d, e, rectangle_width, rectangle_height):
+        #y_offset - offset from the top of the bounding box to start the pattern
+        #a - horizontal length
+        #b - vertical length
+        #c - distance between the same stuff
+        num_repeats_y = int(rectangle_width/(y_offset+b+c)+1)
+        rectangle_of_lozenge_y = []
+        start_x = 0
+        start_y = 0 + y_offset
+        start_y_flipped = 0 + y_offset + b + d
+        start_x_column = 0
+        start_y_column = 0
+
+        for i in range(num_repeats_y):
+            rectangle_of_lozenge_y.append(self.make_lozenge_row(a,b,rectangle_width,start_x,start_y))
+            rectangle_of_lozenge_y.append(self.make_lozenge_row_flipped(a,b,rectangle_width,start_x,start_y_flipped))
+            # rectangle_of_lozenge_y.append(self.make_lozenge_column(a,b,d,e,rectangle_height,start_x_column,start_y_column))
+            start_y = start_y + c
+            start_y_flipped = start_y_flipped + c
+            start_x_column = start_x_column + c
+
+        return rectangle_of_lozenge_y
+
 
     def make_zigzag_column(self, zigzag_width, zigzag_height, total_length, start_x, start_y):
         """generates a column of zigzags(with given width and height) at a specific coordinate(start_x, start_y) of a certain length(total_length)"""
