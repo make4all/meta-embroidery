@@ -25,11 +25,11 @@ class Generator:
         self.long_zigzag_width = w2
 
         #lozenge grid infill only
-        self.a = 43/5
+        self.a = 42.5/5
         self.b = 29/5
-        self.c = 84.2/5
+        self.c = 85/5
         self.y_offset = 1/5
-        self.d = 13.3/5
+        self.d = 13.5/5
         self.e = 56/5
 
         # the default output directory
@@ -127,7 +127,7 @@ class Generator:
 
         # make a rectangle that is as large as the bounding box
         rect = self.make_lozenge_rectangle(self.a, self.b, self.y_offset, self.c, self.d,self.e,
-                                          xlength, ylength)
+                                          diagonal, diagonal)
 
         # rotate the rectangle and translate to the center of the shape
         rotated_rect = []
@@ -211,17 +211,33 @@ class Generator:
 
     def make_lozenge_column(self,a,b,d,e,total_length,start_x,start_y):
         path = Path()
-        x = start_x
-        y = start_y
+        x = start_x-1.5
+        y = start_y+7
 
         num_repeats = int(total_length / 2 * a + 1)
 
         for i in range(num_repeats):
-            path.append(Line(x+e +y*1j, x+e+ (y+a/2)*1j))
-            path.append(Line(x+e + (y+a/2)*1j, x+e-b + (y+a/2)*1j))
-            path.append(Line(x+e-b + (y+a/2)*1j, x+e-b + (y+3/2*a)*1j))
-            path.append(Line(x+e-b + (y+3/2*a)*1j, x+e + (y+3/2*a)*1j))
-            path.append(Line(x+e + (y+3/2*a)*1j, x+e + (y+2*a)*1j))
+            path.append(Line(x +y*1j, x+ (y+a/2)*1j))
+            path.append(Line(x + (y+a/2)*1j, x-b + (y+a/2)*1j))
+            path.append(Line(x-b + (y+a/2)*1j, x-b + (y+3/2*a)*1j))
+            path.append(Line(x-b + (y+3/2*a)*1j, x + (y+3/2*a)*1j))
+            path.append(Line(x + (y+3/2*a)*1j, x + (y+2*a)*1j))
+            y = y+2*a
+        return path
+
+    def make_lozenge_column_flipped(self,a,b,d,e,total_length,start_x,start_y):
+        path = Path()
+        x = start_x-1.5
+        y = start_y+7
+
+        num_repeats = int(total_length / 2 * a + 1)
+
+        for i in range(num_repeats):
+            path.append(Line(x +y*1j, x+ (y+a/2)*1j))
+            path.append(Line(x + (y+a/2)*1j, x+b + (y+a/2)*1j))
+            path.append(Line(x+b + (y+a/2)*1j, x+b + (y+3/2*a)*1j))
+            path.append(Line(x+b + (y+3/2*a)*1j, x + (y+3/2*a)*1j))
+            path.append(Line(x + (y+3/2*a)*1j, x + (y+2*a)*1j))
             y = y+2*a
         return path
 
@@ -262,21 +278,26 @@ class Generator:
         #a - horizontal length
         #b - vertical length
         #c - distance between the same stuff
-        num_repeats_y = int(rectangle_width/(y_offset+b+c)+1)
+        num_repeats_y = int(rectangle_width/(c)+2)
+        num_repeats_x = int(rectangle_width/(c)+2)
         rectangle_of_lozenge_y = []
         start_x = 0
-        start_y = 0 + y_offset
-        start_y_flipped = 0 + y_offset + b + d
+        start_y = 0
+        start_y_flipped = 0 + b + d
         start_x_column = 0
         start_y_column = 0
+        start_x_column_flipped = 0 + d
 
         for i in range(num_repeats_y):
             rectangle_of_lozenge_y.append(self.make_lozenge_row(a,b,rectangle_width,start_x,start_y))
             rectangle_of_lozenge_y.append(self.make_lozenge_row_flipped(a,b,rectangle_width,start_x,start_y_flipped))
-            # rectangle_of_lozenge_y.append(self.make_lozenge_column(a,b,d,e,rectangle_height,start_x_column,start_y_column))
             start_y = start_y + c
             start_y_flipped = start_y_flipped + c
+        for i in range(num_repeats_x):
+            rectangle_of_lozenge_y.append(self.make_lozenge_column(a, b, d, e, rectangle_height, start_x_column, start_y_column))
+            rectangle_of_lozenge_y.append(self.make_lozenge_column_flipped(a,b,d,e,rectangle_height,start_x_column_flipped,start_y_column))
             start_x_column = start_x_column + c
+            start_x_column_flipped = start_x_column_flipped + c
 
         return rectangle_of_lozenge_y
 
