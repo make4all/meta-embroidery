@@ -192,7 +192,7 @@ class Generator:
         # save in filled_shapes
         self.filled_shapes[name] = shape
 
-    def make_svg(self, names, filled_names, filename, units, svg_attributes=None, attributes=None):
+    def make_svg(self, names, filled_names, filename, units='mm', svg_attributes=None, attributes=None):
         """Saves a list of shapes as an svg"""
         paths = []
         for name in names:
