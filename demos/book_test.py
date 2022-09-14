@@ -6,7 +6,7 @@ generator.add_path(
 generator.scale_shape('book', 2.5)
 #generator.fill_shape_zigzag('book', 0, border=True)
 #generator.fill_shape_lozenge('book', 0, border=True)
-generator.fill_shape(shape='book', rotation=45, filltype="lozenge")
+generator.fill_shape(shape_name='book', rotation=45, filltype="lozenge")
 
 generator.make_svg([], ['book'], 'book', 'mm')
 

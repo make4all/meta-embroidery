@@ -41,10 +41,7 @@ def generateCommand():
             'square', 'M 0 0 h 80 v 120 h -80 Z')
         generator.scale_shape('square', 2.5)
 
-    if infill == "zigzag":
-        generator.fill_shape_zigzag(shape, rotationDeg, border=True)
-    elif infill == "lozenge":
-        generator.fill_shape_lozenge(shape, rotationDeg, border=True)
+    generator.fill_shape(shape, rotationDeg, filltype=infill, border=True)
 
     generator.make_svg([], [shape], shape+str(1), 'mm')
     print("Woohoo! I got this far!")

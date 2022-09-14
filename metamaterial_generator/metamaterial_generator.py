@@ -38,28 +38,15 @@ class Generator:
         # the default fill style
         self.default_fill_name = 'zigzag'
 
-    def set_default_shape_name(self, name):
-        default_shape_name = name
+        self.print_list = ["fill_shape_lozenge"]
 
-    def set_default_fill_name(self, name):
-        default_fill_name = name
-
-    def fill_shape(self, shape="default", rotation=0, border=True, filltype="default"):
+    def fill_shape(self, shape_name="default", rotation=0, border=True, filltype="default", position=[0,0]):
         """ Files a shape with the type described in filltype"""
 
-        my_shape = self.default_shape_name if (
-            shape == "default") else shape
+        name = self.default_shape_name if (
+            shape_name == "default") else shape_name
         my_fill = self.default_fill_name if (
             filltype == "default") else filltype
-
-        if (my_fill == 'zigzag'):
-            return self.fill_shape_zigzag(my_shape, rotation, border)
-        else:
-            return self.fill_shape_lozenge(my_shape, rotation, border)
-
- # lozenge grid auxetic fill
-    def fill_shape_lozenge(self, name, rotation, border):
-        """Fills a shape with a lozenge grid. You can choose to keepthe shape outline or remove it and also say what rotation the auxetic material should have"""
 
         # find bounding box of shape to be filled
         shape_path = self.shapes[name]
@@ -68,7 +55,7 @@ class Generator:
         xlength = bbx[1] - bbx[0]
         ylength = int(bbx[3] - bbx[2])
         diagonal = sqrt(xlength * xlength + ylength * ylength).real + 0.2
-        self.print("fill_shape_lozenge", diagonal)
+        self.print("fill_shape", diagonal)
 
         # diagonal/2 is the center of the rectangle;
         # bbx[0]+xlength/2 is the center of the shape
@@ -76,11 +63,13 @@ class Generator:
         x_translate = (bbx[0] + xlength / 2) - diagonal / 2
         y_translate = 1j * ((bbx[2] + ylength / 2) - diagonal / 2)
 
-        # make a rectangle that is as large as the bounding box
-        rect = self.make_loz_rectangle(diagonal, diagonal)
+        if (my_fill == 'zigzag'):
+            # fill a rectangle that is as large as the bounding box
+            rect = self.make_zigzag_rectangle(diagonal, diagonal)
+        else:
+            # fill a rectangle that is as large as the bounding box
+            rect = self.make_loz_rectangle(diagonal, diagonal)
 
-        self.print("fill_shape_lozenge", "starting rotation")
-        # rotate the rectangle and translate to the center of the shape
         rotated_rect = []
         for path in rect:
             if (rotation > 0):
@@ -91,60 +80,26 @@ class Generator:
             path = path.translated(x_translate + y_translate)
             rotated_rect.append(path)
 
-        self.print("fill_shape_lozenge","cropping ")
+        self.print("fill_shape","cropping ")
         # call crop to shape
-        shape = self.crop_to_shape(shape_path, rotated_rect)
+        cropped_shape = self.crop_to_shape(shape_path, rotated_rect)
         
-        self.print("fill_shape_lozenge","adding border")
+        self.print("fill_shape","adding border")
         # add border if needed
         if border:
-            shape.append(shape_path)
+            cropped_shape.append(shape_path)
 
+        self.print("fill_shape", "translating shape")
+
+        translated_shape = []
+        for path in cropped_shape:
+            path = path.translated(position[0]+position[1]*1j)
+            translated_shape.append(path)
+        
         # save in filled_shapes
-        self.filled_shapes[name] = shape
+        self.filled_shapes[name] = translated_shape
 
-    def fill_shape_zigzag(self, name, rotation, border):
-        """Fills a shape with zigzags. You can choose to keep the shape outline or remove it and also say what rotation the auxetic material should have(where 0 rotation is vertical columns of zigzags)"""
-        # find bounding box of shape to be filled
-        shape_path = self.shapes[name]
-        bbx = shape_path.bbox()
-        # find longest side of bounding box
-        xlength = bbx[1]-bbx[0]
-        ylength = int(bbx[3]-bbx[2])
-        diagonal = sqrt(xlength*xlength+ylength*ylength).real + 0.2
-        self.print("fill_shape_zigzag",diagonal)
-
-        # diagonal/2 is the center of the rectangle;
-        # bbx[0]+xlength/2 is the center of the shape
-        # subtract to figure out how much to translate
-        x_translate = (bbx[0]+xlength/2)-diagonal/2
-        y_translate = 1j*((bbx[2]+ylength/2)-diagonal/2)
-
-        # make a rectangle that is as large as the bounding box
-        rect = self.make_zigzag_rectangle(self.short_zigzag_width, self.zigzag_height, self.long_zigzag_width,
-                                          diagonal, diagonal)
-
-        # rotate the rectangle and translate to the center of the shape
-        rotated_rect = []
-        for path in rect:
-            if (rotation > 0):
-                path = path.rotated(rotation, diagonal/2+1j*diagonal/2)
-            # calculate the amount to translate in x as the upper left corner
-            # of this path minus the upper left corner of the shape's bounding box
-            path = path.translated(x_translate+y_translate)
-            rotated_rect.append(path)
-
-        # call crop to shape
-        shape = self.crop_to_shape(shape_path, rotated_rect)
-
-        # add border if needed
-        if border:
-            shape.append(shape_path)
-
-        # save in filled_shapes
-        self.filled_shapes[name] = shape
 ################### ZIGZAG HELPER CODE #####################
-
     def make_zigzag_column(self, zigzag_width, zigzag_height, total_length, start_x, start_y):
         """generates a column of zigzags(with given width and height) at a specific coordinate(start_x, start_y) of a certain length(total_length)"""
         path = Path()
@@ -159,20 +114,21 @@ class Generator:
             y = y+zigzag_height
         return path
 
-    def make_zigzag_rectangle(self, short_zigzag_width, zigzag_height, long_zigzag_width, rectangle_width, rectangle_height):
+    def make_zigzag_rectangle(self, rectangle_width, rectangle_height):
         """makes a rectangle out of small and large zigzag columns at 0, 0 that is the given size. basically generates the base auxetic material pattern"""
+
         num_repeats = int(
-            rectangle_width/(long_zigzag_width - short_zigzag_width) + 1)
+            rectangle_width/(self.long_zigzag_width - self.short_zigzag_width) + 1)
         rectangle_of_zigzags = []
         start_x = 0
         y = 0
         for i in range(num_repeats):
             rectangle_of_zigzags.append(self.make_zigzag_column(
-                short_zigzag_width, zigzag_height, rectangle_height, start_x, y))
+                self.short_zigzag_width, self.zigzag_height, rectangle_height, start_x, y))
             start_x = start_x
             rectangle_of_zigzags.append(self.make_zigzag_column(
-                long_zigzag_width, zigzag_height, rectangle_height, start_x, y))
-            start_x = start_x+long_zigzag_width-short_zigzag_width
+                self.long_zigzag_width, self.zigzag_height, rectangle_height, start_x, y))
+            start_x = start_x+self.long_zigzag_width-self.short_zigzag_width
         return rectangle_of_zigzags
 
     ################### LOZENGE HELPER CODE #####################
@@ -297,12 +253,10 @@ class Generator:
         final_version = []
         for path in cropped_paths:
             pt = path.point(0.5)
-            crosses = Path(Line(pt, pt_outside_shape)
-                           ).intersect(shape_path)
+            crosses = Path(Line(pt, pt_outside_shape)).intersect(shape_path)
             if len(crosses) % 2:
                 final_version.append(path)
-            # for i in rectangle_paths:
-            # final_version.append(i.rotated(rotate_amt, rotate_around_pt))
+
         return final_version
 
     def offset_curve(self, path, offset_distance, steps=1000):
@@ -344,8 +298,7 @@ class Generator:
         # return offset_path
 
     def print(self, name, text):
-        print_list = ["fill_shape_lozenge"]
-        result = print(f"{name}: {text}") if name in print_list else False
+        result = print(f"{name}: {text}") if name in self.print_list else False
         result = print(f"{text}: {self.shapes[name]}") if name in self.shapes else False
 
     def make_svg(self, names, filled_names, filename, units='mm', svg_attributes=None, attributes=None):
@@ -367,7 +320,18 @@ class Generator:
         wsvg(paths=paths, filename=filename,
              baseunit=units, svg_attributes=svg_attributes, attributes=attributes)
 
-    ################### Shape making functions (standard graphics stuff) ####################
+################### Setters and Getters ####################
+
+    def set_default_shape_name(self, name):
+        self.default_shape_name = name
+
+    def set_default_fill_name(self, name):
+        self.default_fill_name = name
+
+    def set_print_list(self, list):
+        self.print_list = list
+
+################### Shape making functions (standard graphics stuff) ####################
 
     def add_path(self, name, path):
         """ Adds a path to the dictionary. Path should be specified using a d string and is then parsed. """
