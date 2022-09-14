@@ -134,7 +134,7 @@ generateButton.grid(row=8,column=0, columnspan=6)
 
 # Create an object of tkinter ImageTk
 #star image
-img_star = (Image.open("star.jpg"))
+img_star = (Image.open("interface/star.jpg"))
 star_resized = img_star.resize((70,70), Image.ANTIALIAS)
 star_new= ImageTk.PhotoImage(star_resized)
 image = tkinter.Label(gui, image = star_new)
@@ -143,7 +143,7 @@ starLabel = tkinter.Label(gui,text="Star", font=("Arial",10))
 starLabel.grid(row=3,column=2, sticky=tkinter.N)
 
 #heart image
-img_heart = (Image.open("heart.jpg"))
+img_heart = (Image.open("interface/heart.jpg"))
 heart_resized = img_heart.resize((70,70), Image.ANTIALIAS)
 heart_new= ImageTk.PhotoImage(heart_resized)
 image = tkinter.Label(gui, image = heart_new)
@@ -152,7 +152,7 @@ heartLabel = tkinter.Label(gui,text="Heart", font=("Arial",10))
 heartLabel.grid(row=3,column=3, sticky=tkinter.N)
 
 #square image
-img_square = (Image.open("square.jpg"))
+img_square = (Image.open("interface/square.jpg"))
 square_resized = img_square.resize((70,70), Image.ANTIALIAS)
 square_new= ImageTk.PhotoImage(square_resized)
 image = tkinter.Label(gui, image = square_new)
@@ -161,7 +161,7 @@ squareLabel = tkinter.Label(gui,text="Square", font=("Arial",10))
 squareLabel.grid(row=3,column=4, sticky=tkinter.N)
 
 #book image
-img_book = (Image.open("book.jpg"))
+img_book = (Image.open("interface/book.jpg"))
 book_resized = img_book.resize((70,90), Image.ANTIALIAS)
 book_new= ImageTk.PhotoImage(book_resized)
 image = tkinter.Label(gui, image = book_new)
@@ -170,7 +170,7 @@ bookLabel = tkinter.Label(gui,text="Book", font=("Arial",10))
 bookLabel.grid(row=3,column=5, sticky=tkinter.N)
 
 #zigzag image
-img_zigzag = (Image.open("zigzag.jpg"))
+img_zigzag = (Image.open("interface/zigzag.jpg"))
 zigzag_resized = img_zigzag.resize((70,70), Image.ANTIALIAS)
 zigzag_new= ImageTk.PhotoImage(zigzag_resized)
 image = tkinter.Label(gui, image = zigzag_new)
@@ -179,7 +179,7 @@ zigzagLabel = tkinter.Label(gui,text="Zigzag", font=("Arial",10))
 zigzagLabel.grid(row=5,column=3, sticky=tkinter.N)
 
 #lozenge image
-img_lozenge = (Image.open("lozenge.jpg"))
+img_lozenge = (Image.open("interface/lozenge.jpg"))
 lozenge_resized = img_lozenge.resize((70,70), Image.ANTIALIAS)
 lozenge_new= ImageTk.PhotoImage(lozenge_resized)
 image = tkinter.Label(gui, image = lozenge_new)
@@ -187,6 +187,7 @@ image.grid(row=4,column = 4)
 lozengeLabel = tkinter.Label(gui,text="Lozenge", font=("Arial",10))
 lozengeLabel.grid(row=5,column=4, sticky=tkinter.N)
 
+# gui.configure(bg="#40E0D0")
 
 # generateButton.pack()
 gui.mainloop()

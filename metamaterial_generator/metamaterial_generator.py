@@ -8,7 +8,7 @@ class Generator:
     CREATE a metamaterial SVG
     """
 
-    def __init__(self, w1=12, h=18, w2=24, output="output"):
+    def __init__(self, output="output"):
         """Stores parameters for the zigzag height and width and sets up the dictionary of shapes"""
         # an array of all the shapes that have been created
         self.shapes = {}
@@ -18,19 +18,17 @@ class Generator:
 
         # zigzag fill only
         # the width of the short zigzag
-        self.short_zigzag_width = w1
+        self.short_zigzag_width = 12
         # the height of both zigzags is the same
-        self.zigzag_height = h
+        self.zigzag_height = 18
         # the width of the long zigzag
-        self.long_zigzag_width = w2
+        self.long_zigzag_width = 24
 
-        #lozenge grid infill only
-        self.a = 42.5/5
-        self.b = 29/5
-        self.c = 85/5
-        self.y_offset = 1/5
-        self.d = 13.5/5
-        self.e = 56/5
+        # lozenge grid infill only
+        self.loz_long_side = 42.5/5
+        self.loz_short_side = 29/5 
+        self.loz_gap = 13.5/5 
+        self.loz_spacing = self.loz_long_side + self.loz_short_side + self.loz_gap
 
         # the default output directory
         self.output_dir = output
@@ -40,84 +38,37 @@ class Generator:
         # the default fill style
         self.default_fill_name = 'zigzag'
 
-    def add_path(self, name, path):
-        """ Adds a path to the dictionary. Path should be specified using a d string and is then parsed. """
-        path = parse_path(path)
-        self.shapes[name] = path
-
-    def add_shape(self, name, shape):
-        """ Adds a shape to the dictionary, specified as a d string"""
-        self.shapes[name] = shape
-
     def set_default_shape_name(self, name):
         default_shape_name = name
 
     def set_default_fill_name(self, name):
         default_fill_name = name
 
-    def add_rect(self, name, w, h):
-        """ Adds a rectangle to the dictionary"""
-        self.add_path(name, f"M 0 0 h {w} v {h} h {-w} Z")
+    def fill_shape(self, shape="default", rotation=0, border=True, filltype="default"):
+        """ Files a shape with the type described in filltype"""
 
-    def add_line(self, name, start, end):
-        """ Adds a line to the dictionary """
-        self.shapes[name] = Line(start, end)
+        my_shape = self.default_shape_name if (
+            shape == "default") else shape
+        my_fill = self.default_fill_name if (
+            filltype == "default") else filltype
 
-    def add_line(self, name, x1, y1, x2, y2):
-        """ Adds a line to the dictionary """
-        self.shapes[name] = Line(x1+1j*y1, x2+1j*y2)
+        if (my_fill == 'zigzag'):
+            return self.fill_shape_zigzag(my_shape, rotation, border)
+        else:
+            return self.fill_shape_lozenge(my_shape, rotation, border)
 
-    def add_circle(self, name, radius):
-        """ Adds a circle to the dictionary"""
-        circle = Path(Arc(start=0 + 120j, rotation=0, radius=radius, large_arc=1, sweep=180, end=200 + 120j),
-                      Arc(start=200 + 120j, rotation=180, radius=radius, large_arc=1, sweep=180, end=0 + 120j))
-        # need to tie the start and end to the radius
-        self.shapes[name] = circle
-        return circle
+ # lozenge grid auxetic fill
+    def fill_shape_lozenge(self, name, rotation, border):
+        """Fills a shape with a lozenge grid. You can choose to keepthe shape outline or remove it and also say what rotation the auxetic material should have"""
 
-    def scale_shape(self, name, fraction):
-        """Scales an existing shape (or every path in a shape) to a fraction of its current size"""
-        # add ability to scale differently in X and Y and to choose scale origin
-        shape = self.shapes[name]
-        self.shapes[name] = shape.scaled(fraction)
-
-    def translate_shape(self, name, translate):
-        """ Translate a shapy (or every path in a shape) by the complex coordinates given"""
-        shape = self.shapes[name]
-        self.shapes[name] = shape.translated(translate)
-
-    def move_to_origin(self, name, topleft=True, middle=False):
-        """Moves the shape to the orgin. If topleft, move the top left of the bounding box
-           to the origin, otherwise move the middle to the orgiin."""
-        bbx = self.shapes[name].bbox()
-        translate = -bbx[1]-1j*bbx[2]
-
-        if middle:
-            xlength = bbx[1]-bbx[0]
-            ylength = int(bbx[3]-bbx[2])
-            translate = translate - xlength/2-1j*ylength/2
-
-        self.translate_shape(name, middle)
-
-    def move_new_location(self,name,xnew,ynew,middle=True):
-        bbx = self.shapes[name].bbox()
-
-        translate = -bbx[1]-1j*bbx[2]
-
-        if middle:
-            translate = translate - xnew -1j*ynew
-
-        self.translate_shape(name,middle)
-
-    #lozenge grid auxetic fill
-    def fill_shape_lozenge(self,name, rotation, border):
+        # find bounding box of shape to be filled
         shape_path = self.shapes[name]
         bbx = shape_path.bbox()
-        #find longest side of bounding box
+        # find longest side of bounding box
         xlength = bbx[1] - bbx[0]
         ylength = int(bbx[3] - bbx[2])
         diagonal = sqrt(xlength * xlength + ylength * ylength).real + 0.2
-        print(diagonal)
+        self.print("fill_shape_lozenge", diagonal)
 
         # diagonal/2 is the center of the rectangle;
         # bbx[0]+xlength/2 is the center of the shape
@@ -126,22 +77,25 @@ class Generator:
         y_translate = 1j * ((bbx[2] + ylength / 2) - diagonal / 2)
 
         # make a rectangle that is as large as the bounding box
-        rect = self.make_lozenge_rectangle(self.a, self.b, self.y_offset, self.c, self.d,self.e,
-                                          diagonal, diagonal)
+        rect = self.make_loz_rectangle(diagonal, diagonal)
 
+        self.print("fill_shape_lozenge", "starting rotation")
         # rotate the rectangle and translate to the center of the shape
         rotated_rect = []
         for path in rect:
             if (rotation > 0):
-                path = path.rotated(rotation, diagonal / 2 + 1j * diagonal / 2)
+                path = path.rotated(
+                    rotation, diagonal / 2 + 1j * diagonal / 2)
             # calculate the amount to translate in x as the upper left corner
             # of this path minus the upper left corner of the shape's bounding box
             path = path.translated(x_translate + y_translate)
             rotated_rect.append(path)
 
+        self.print("fill_shape_lozenge","cropping ")
         # call crop to shape
         shape = self.crop_to_shape(shape_path, rotated_rect)
-
+        
+        self.print("fill_shape_lozenge","adding border")
         # add border if needed
         if border:
             shape.append(shape_path)
@@ -149,10 +103,8 @@ class Generator:
         # save in filled_shapes
         self.filled_shapes[name] = shape
 
-
     def fill_shape_zigzag(self, name, rotation, border):
-        """Fills a shape with zigzags. You can choose to add a keep the shape outline or remove it
-           and also say what rotation the auxetic material should have(where 0 rotation is vertical columns of zigzags)"""
+        """Fills a shape with zigzags. You can choose to keep the shape outline or remove it and also say what rotation the auxetic material should have(where 0 rotation is vertical columns of zigzags)"""
         # find bounding box of shape to be filled
         shape_path = self.shapes[name]
         bbx = shape_path.bbox()
@@ -160,7 +112,7 @@ class Generator:
         xlength = bbx[1]-bbx[0]
         ylength = int(bbx[3]-bbx[2])
         diagonal = sqrt(xlength*xlength+ylength*ylength).real + 0.2
-        print(diagonal)
+        self.print("fill_shape_zigzag",diagonal)
 
         # diagonal/2 is the center of the rectangle;
         # bbx[0]+xlength/2 is the center of the shape
@@ -191,116 +143,7 @@ class Generator:
 
         # save in filled_shapes
         self.filled_shapes[name] = shape
-
-    def make_svg(self, names, filled_names, filename, units='mm', svg_attributes=None, attributes=None):
-        """Saves a list of shapes as an svg"""
-        paths = []
-        for name in names:
-            path = self.shapes[name]
-            # self.print(path.bbox(), name)
-            paths += path
-
-        for name in filled_names:
-            path = self.filled_shapes[name]
-            # self.print(path.bbox(), name)
-            paths += path
-
-        # if (len(attributes) is 0): attributes = np.full(len(names)+1, {})
-        wsvg(paths=paths, filename=f"{self.output_dir}/{filename}_{self.short_zigzag_width}_{self.zigzag_height}_{self.long_zigzag_width}_{date.today().isoformat()}.svg",
-             baseunit=units, svg_attributes=svg_attributes, attributes=attributes)
-
-    def make_lozenge_column(self,a,b,d,e,total_length,start_x,start_y):
-        path = Path()
-        x = start_x-1.5
-        y = start_y+7
-
-        num_repeats = int(total_length / 2 * a + 1)
-
-        for i in range(num_repeats):
-            path.append(Line(x +y*1j, x+ (y+a/2)*1j))
-            path.append(Line(x + (y+a/2)*1j, x-b + (y+a/2)*1j))
-            path.append(Line(x-b + (y+a/2)*1j, x-b + (y+3/2*a)*1j))
-            path.append(Line(x-b + (y+3/2*a)*1j, x + (y+3/2*a)*1j))
-            path.append(Line(x + (y+3/2*a)*1j, x + (y+2*a)*1j))
-            y = y+2*a
-        return path
-
-    def make_lozenge_column_flipped(self,a,b,d,e,total_length,start_x,start_y):
-        path = Path()
-        x = start_x-1.5
-        y = start_y+7
-
-        num_repeats = int(total_length / 2 * a + 1)
-
-        for i in range(num_repeats):
-            path.append(Line(x +y*1j, x+ (y+a/2)*1j))
-            path.append(Line(x + (y+a/2)*1j, x+b + (y+a/2)*1j))
-            path.append(Line(x+b + (y+a/2)*1j, x+b + (y+3/2*a)*1j))
-            path.append(Line(x+b + (y+3/2*a)*1j, x + (y+3/2*a)*1j))
-            path.append(Line(x + (y+3/2*a)*1j, x + (y+2*a)*1j))
-            y = y+2*a
-        return path
-
-    def make_lozenge_row(self,a,b,total_length,start_x,start_y):
-        path = Path()
-        x = start_x
-        y = start_y
-
-        num_repeats = int(total_length/2*a + 1)
-
-        for i in range(num_repeats):
-            path.append(Line(x+y*1j, x+a/2+y*1j))
-            path.append(Line(x+a/2+y*1j, x+a/2+(y+b)*1j))
-            path.append(Line(x+a/2+(y+b)*1j, x+3/2*a+(y+b)*1j))
-            path.append(Line(x+3/2*a + (y+b)*1j, x+3/2*a + y*1j))
-            path.append(Line(x+3/2*a + y*1j, x+2*a + y*1j))
-            x = x+2*a
-        return path
-
-    def make_lozenge_row_flipped(self,a,b,total_length,start_x,start_y):
-        path = Path()
-        x = start_x
-        y = start_y
-
-        num_repeats = int(total_length/2*a + 1)
-
-        for i in range(num_repeats):
-            path.append(Line(x+(y+b)*1j, x+a/2 + (y+b)*1j))
-            path.append(Line(x+a/2 + (y+b)*1j, x+a/2 + y*1j))
-            path.append(Line(x+a/2 + y*1j, x+3/2*a + y*1j))
-            path.append(Line(x+3/2*a + y*1j, x+3/2*a + (y+b)*1j))
-            path.append(Line(x+3/2*a + (y+b)*1j, x+2*a + (y+b)*1j))
-            x = x + 2 * a
-        return path
-
-    def make_lozenge_rectangle(self, a, b, y_offset, c, d, e, rectangle_width, rectangle_height):
-        #y_offset - offset from the top of the bounding box to start the pattern
-        #a - horizontal length
-        #b - vertical length
-        #c - distance between the same stuff
-        num_repeats_y = int(rectangle_width/(c)+2)
-        num_repeats_x = int(rectangle_width/(c)+2)
-        rectangle_of_lozenge_y = []
-        start_x = 0
-        start_y = 0
-        start_y_flipped = 0 + b + d
-        start_x_column = 0
-        start_y_column = 0
-        start_x_column_flipped = 0 + d
-
-        for i in range(num_repeats_y):
-            rectangle_of_lozenge_y.append(self.make_lozenge_row(a,b,rectangle_width,start_x,start_y))
-            rectangle_of_lozenge_y.append(self.make_lozenge_row_flipped(a,b,rectangle_width,start_x,start_y_flipped))
-            start_y = start_y + c
-            start_y_flipped = start_y_flipped + c
-        for i in range(num_repeats_x):
-            rectangle_of_lozenge_y.append(self.make_lozenge_column(a, b, d, e, rectangle_height, start_x_column, start_y_column))
-            rectangle_of_lozenge_y.append(self.make_lozenge_column_flipped(a,b,d,e,rectangle_height,start_x_column_flipped,start_y_column))
-            start_x_column = start_x_column + c
-            start_x_column_flipped = start_x_column_flipped + c
-
-        return rectangle_of_lozenge_y
-
+################### ZIGZAG HELPER CODE #####################
 
     def make_zigzag_column(self, zigzag_width, zigzag_height, total_length, start_x, start_y):
         """generates a column of zigzags(with given width and height) at a specific coordinate(start_x, start_y) of a certain length(total_length)"""
@@ -332,6 +175,107 @@ class Generator:
             start_x = start_x+long_zigzag_width-short_zigzag_width
         return rectangle_of_zigzags
 
+    ################### LOZENGE HELPER CODE #####################
+        
+    def make_loz_line(self, total_length, start_x, start_y, direction="row", flip=False):
+        """ Makes one of four possible lines: a row, a flipped row, a column, or a flipped column. 
+            direction spefies row or column. """
+        path = Path()
+
+        # Calculates number of repeats within a line
+        num_repeats = int(total_length/(2*self.loz_long_side)+1) 
+        self.print("make_loz_line",f"creating {direction} at ({start_x}, {start_y}) that is {flip} with {num_repeats} repeated per line of length {total_length}")
+        
+        # unflipped row start
+        unflipped_row_start = [start_x, start_y]  # start at start_x, start_y
+        # flipped row start
+        flipped_row_start = [start_x, start_y+self.loz_short_side]
+        # unflipped col start
+        unflipped_col_start = [start_x-1.5, start_y+7] # where did these numbers come from
+        # flipped col start
+        flipped_col_start = [start_x-1.5, start_y+7] # where did these numbers come from
+
+        # when to apply changes to x, and when to apply them to y
+        row_order = [[1,0],[0,1],[1,0],[0,1],[1,0]]
+        col_order = [[0,1],[1,0],[0,1],[1,0],[0,1]]
+        
+        increase_first = [self.loz_long_side/2,
+                          self.loz_short_side,  # increase 
+                          self.loz_long_side,
+                          -self.loz_short_side, # decrease
+                          self.loz_long_side/2]
+        decrease_first = [self.loz_long_side/2,
+                          -self.loz_short_side, # decrease
+                          self.loz_long_side,
+                          self.loz_short_side,  # increase
+                          self.loz_long_side/2]
+
+        if (direction == "row"): 
+            cursor = flipped_row_start if flip else unflipped_row_start
+            changes = decrease_first if flip else increase_first
+            order = row_order
+        else:
+            cursor = flipped_col_start if flip  else unflipped_col_start
+            changes = increase_first if flip  else decrease_first
+            order = col_order
+            
+        # turn that information into a list of x and y changes
+        # in the format [[x1, y1],[x2, y2],[x3, y3]...]
+        change_list = list(map(lambda change, item: 
+                               list(map(lambda val: change*val, item)),
+                               changes,
+                               order))
+        
+        self.print("make_loz_line",change_list)
+
+        # repeatedly execute the changes until num_repeats
+        for i in range(num_repeats):
+            for change in change_list:
+                self.print("make_loz_line", cursor)
+                path.append(Line(cursor[0]+cursor[1]*1j,
+                                 (cursor[0]+change[0])+(cursor[1]+change[1])*1j))
+                cursor[0] = cursor[0]+change[0]
+                cursor[1] = cursor[1]+change[1]
+        return path
+                
+    def make_loz_rectangle(self, rectangle_width, rectangle_height):
+        """ Makes a rectangle of width, height and fills it with a lozenge grid. loz_orizontal_len is the length of a single lozenge on the horizental lines. loz_short_side. loz_spacing is the distance between things that are the same  """
+
+        # Calculate number of repeats across the whole rectangle
+        num_repeats_y = int(2+rectangle_width/self.loz_spacing)
+        num_repeats_x = int(2+rectangle_height/self.loz_spacing)
+
+        self.print("make_loz_rectangle",f"making rectangle with width {rectangle_width}, height {rectangle_height} with {num_repeats_y} horizontal and {num_repeats_x} vertical lines ")
+        
+        
+        return_rect = []
+        start_x = 0  # increments by
+        start_y = 0
+        start_y_flipped = 0 + self.loz_short_side + self.loz_gap
+        start_x_column = 0
+        start_y_column = 0
+        start_x_column_flipped = 0 + self.loz_gap
+
+        for i in range(num_repeats_y):
+                self.print("make_loz_rectangle",f"{i} rows")
+                return_rect.append(self.make_loz_line(rectangle_width, start_x, start_y))
+                return_rect.append(self.make_loz_line(rectangle_width, start_x, start_y_flipped, flip=True))
+                start_y = start_y + self.loz_spacing
+                start_y_flipped = start_y_flipped + self.loz_spacing
+        for i in range(num_repeats_x):
+                self.print("make_loz_rectangle",f"{i} columns")
+                return_rect.append(self.make_loz_line(rectangle_height, start_x_column, start_y_column,
+                                                      direction="column"))
+                return_rect.append(self.make_loz_line(rectangle_height, start_x_column_flipped, start_y_column,
+                                                      direction="column", flip=True))
+                start_x_column = start_x_column + self.loz_spacing
+                start_x_column_flipped = start_x_column_flipped + self.loz_spacing
+                start_x = start_x+self.loz_spacing
+
+        return return_rect
+
+    ############################# OTHER HELPERS #############################
+
     def crop_to_shape(self, shape_path, rectangle_paths):
         """crops a given shape(path outline) to a filled rectangle."""
         cropped_paths = []
@@ -341,7 +285,7 @@ class Generator:
         shape_path = shape_path.translated(-0.1 - 0.1j)
         for path in rectangle_paths:
             pt = 0
-            for (T1, seg1, t1), (T2, seg2, t2) in path.intersect(shape_path):
+            for (T1, seg1, t1), T2 in path.intersect(shape_path):
                 if T1 < pt:
                     cropped_paths.append(
                         Line(path.point(pt), path.point(T1)))
@@ -353,7 +297,8 @@ class Generator:
         final_version = []
         for path in cropped_paths:
             pt = path.point(0.5)
-            crosses = Path(Line(pt, pt_outside_shape)).intersect(shape_path)
+            crosses = Path(Line(pt, pt_outside_shape)
+                           ).intersect(shape_path)
             if len(crosses) % 2:
                 final_version.append(path)
             # for i in rectangle_paths:
@@ -399,4 +344,90 @@ class Generator:
         # return offset_path
 
     def print(self, name, text):
-        print(f"{text}: {self.shapes[name]}")
+        print_list = ["fill_shape_lozenge"]
+        result = print(f"{name}: {text}") if name in print_list else False
+        result = print(f"{text}: {self.shapes[name]}") if name in self.shapes else False
+
+    def make_svg(self, names, filled_names, filename, units='mm', svg_attributes=None, attributes=None):
+        """Saves a list of shapes as an svg"""
+        paths = []
+        for name in names:
+            path = self.shapes[name]
+            # self.print(path.bbox(), name)
+            paths += path
+
+        for name in filled_names:
+            path = self.filled_shapes[name]
+            # self.print(path.bbox(), name)
+            paths += path
+
+        filename=f"{self.output_dir}/{filename}_zig{self.short_zigzag_width}.{self.zigzag_height}.{self.long_zigzag_width}_loz{self.loz_long_side}.{self.loz_short_side}.{self.loz_gap}_{date.today().isoformat()}.svg"
+                        
+        # if (len(attributes) is 0): attributes = np.full(len(names)+1, {})
+        wsvg(paths=paths, filename=filename,
+             baseunit=units, svg_attributes=svg_attributes, attributes=attributes)
+
+    ################### Shape making functions (standard graphics stuff) ####################
+
+    def add_path(self, name, path):
+        """ Adds a path to the dictionary. Path should be specified using a d string and is then parsed. """
+        path = parse_path(path)
+        self.shapes[name] = path
+
+    def add_shape(self, name, shape):
+        """ Adds a shape to the dictionary, specified as a d string"""
+        self.shapes[name] = shape
+
+    def add_rect(self, name, w, h):
+        """ Adds a rectangle to the dictionary"""
+        self.add_path(name, f"M 0 0 h {w} v {h} h {-w} Z")
+
+    def add_line(self, name, start, end):
+        """ Adds a line to the dictionary """
+        self.shapes[name] = Line(start, end)
+
+    def add_line(self, name, x1, y1, x2, y2):
+        """ Adds a line to the dictionary """
+        self.shapes[name] = Line(x1+1j*y1, x2+1j*y2)
+
+    def add_circle(self, name, radius):
+        """ Adds a circle to the dictionary"""
+        circle = Path(Arc(start=0 + 120j, rotation=0, radius=radius, large_arc=1, sweep=180, end=200 + 120j),
+                      Arc(start=200 + 120j, rotation=180, radius=radius, large_arc=1, sweep=180, end=0 + 120j))
+        # need to tie the start and end to the radius
+        self.shapes[name] = circle
+        return circle
+
+    def scale_shape(self, name, fraction):
+        """Scales an existing shape (or every path in a shape) to a fraction of its current size"""
+        # add ability to scale differently in X and Y and to choose scale origin
+        shape = self.shapes[name]
+        self.shapes[name] = shape.scaled(fraction)
+
+    def translate_shape(self, name, translate):
+        """ Translate a shapy (or every path in a shape) by the complex coordinates given"""
+        shape = self.shapes[name]
+        self.shapes[name] = shape.translated(translate)
+
+    def move_to_origin(self, name, topleft=True, middle=False):
+        """Moves the shape to the orgin. If topleft, move the top left of the bounding box
+           to the origin, otherwise move the middle to the orgiin."""
+        bbx = self.shapes[name].bbox()
+        translate = -bbx[1]-1j*bbx[2]
+
+        if middle:
+            xlength = bbx[1]-bbx[0]
+            ylength = int(bbx[3]-bbx[2])
+            translate = translate - xlength/2-1j*ylength/2
+
+        self.translate_shape(name, middle)
+
+    def move_new_location(self, name, xnew, ynew, middle=True):
+        bbx = self.shapes[name].bbox()
+
+        translate = -bbx[1]-1j*bbx[2]
+
+        if middle:
+            translate = translate - xnew - 1j*ynew
+
+        self.translate_shape(name, middle)
