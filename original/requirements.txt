@@ -29,7 +29,7 @@ Kivy==2.1.0
 Kivy-examples==2.1.0
 Kivy-Garden==0.1.5
 MarkupSafe==2.1.1
-metamaterial-generator @ file:///Users/jmankoff/Research/embroidery/meta-embroidery/dist/metamaterial_generator-0.1.0-py3-none-any.whl
+metamaterial-generator @ file:///Users/kglazko/Documents/uw/meta-embroidery/dist/metamaterial_generator-0.1.0-py3-none-any.whl
 more-itertools==8.14.0
 nodeenv==1.7.0
 numpy==1.23.3

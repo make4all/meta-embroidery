@@ -315,10 +315,15 @@ class Generator:
             paths += path
 
         filename=f"{self.output_dir}/{filename}_zig{self.short_zigzag_width}.{self.zigzag_height}.{self.long_zigzag_width}_loz{self.loz_long_side}.{self.loz_short_side}.{self.loz_gap}_{date.today().isoformat()}.svg"
-                        
+        raw_o
+
         # if (len(attributes) is 0): attributes = np.full(len(names)+1, {})
         wsvg(paths=paths, filename=filename,
              baseunit=units, svg_attributes=svg_attributes, attributes=attributes)
+
+        return paths
+
+        
 
 ################### Setters and Getters ####################
 

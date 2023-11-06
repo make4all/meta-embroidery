@@ -1,0 +1,98 @@
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+svg {
+  max-width: 100%;
+  height: auto;
+}
+
+body {
+  background-color: lightgray;
+}
+
+.container {
+  margin-top: 20px;
+  color: black;
+}
+
+#outer-dropzone {
+  max-width: 100%;
+  height: auto;
+}
+
+#inner-dropzone {
+  height: 100%;
+}
+
+.dropzone {
+}
+
+.drop-active {
+  border-color: #29e;
+}
+
+.drop-target {
+  background-image: : url("img/lozenge.jpg");;
+  border-color: #fff;
+  border-style: solid;
+}
+
+.drag-drop {
+  display: inline-block;
+
+  touch-action: none;
+  transform: translate(0px, 0px);
+}
+
+.drag-drop-svg {
+
+  min-width: 40px;
+  color: #fff;
+
+  display: block;
+
+  touch-action: none;
+  transform: translate(0px, 0px);
+}
+
+.drag-drop.can-drop {
+  color: #000;
+  background-color: #4e4;
+}
+
+.scale {
+        padding: 20px;
+        border: solid 15px lightgray;
+        margin-top: 10px;
+    }
+
+.materialed {
+  border: solid 2px red;
+}
+
+.workspace {
+}
+
+.row {
+  margin-top: 10px;
+}
+
+.backgr {
+  background-color: lightgray;
+}
+
+.material {
+  
+}
+
+.interact-area {
+  background-color: white;
+  box-shadow: 10px 10px 5px lightgray;
+}
+
+#propts {
+  border: solid 1px black !important;
+  margin-top:5px;
+}

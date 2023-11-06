@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Shaping Lace</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="description" content="" />
+
+    <!-- Compiled and minified CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+
+    <!-- Compiled and minified JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.js"></script>
+  <link rel="stylesheet" type="text/css" href="static/css/dragdrop.css" />
+
+  <script>
+  	 document.addEventListener('DOMContentLoaded', function() {
+    var elems = document.querySelectorAll('select');
+    var instances = M.FormSelect.init(elems, options);
+  });
+  </script>
+</head>
+
+<body>
+ <nav class="white">
+    <div class="nav-wrapper">
+      <a href="#" class="brand-logo black-text"><i class="material-icons">gesture</i>Shaping Lace</a>
+      <ul id="nav-mobile" class="right hide-on-med-and-down">
+        <li><a href="sass.html">Download Final SVG</a></li>
+      </ul>
+    </div>
+  </nav>
+
+
+ <div class="container" style="width:100%">
+        <!-- Page Content goes here -->
+     <div class="row section">
+      <div class="col s3 grey lighten-2">
+
+  <div class="row">
+   <div class="select1 col s12">
+    <select>
+      <option value="" disabled selected>Choose your option</option>
+      <option value="1">Basic Shapes</option>
+      <option value="2">Body Accessories</option>
+      <option value="3">Fitness</option>
+    </select>
+    <label>Materialize Select</label>
+  </div>
+      </div>
+
+
+          <div class="row">
+          <div class="col l6">
+              <img id="star-select" class="scale" src="static/img/star.jpg" onclick="addShape('star')"/>
+            </div>
+
+          <div class="col l6">
+              <img id="heart-select" class="scale" src="static/img/heart.jpg" onclick="addShape('heart')"/>
+            </div>
+
+          <div class="col l6">
+              <img id="square-select" class="scale" src="static/img/square.jpg" onclick="addShape('square')"/>
+            </div>
+
+        <div class="col s6">
+        </div>
+          
+        </div>
+
+        <div class="row">
+          <div class="col s10 offset-s1 white propts">
+            <p>Material</p>
+          </div>
+          <div class="col s6">
+          <img src="static/img/lozenge.jpg" class="drag-drop material" id="lozenge">
+        </div>
+
+          <div class="col s6">
+          <img src="static/img/zigzag.jpg" class="drag-drop material" id="zigzag">
+        </div>
+
+          </div>  
+      </div>      
+
+      <div class="col s8 offset-s1 workspace white dropzone" id="workspace">
+
+
+
+ <svg id="yes-drop" class="drag-drop-svg" version="1.1"
+     xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <!--<image href="img/square.jpg" x="0" y="0" height="50px" width="50px"/>-->
+  <path d="M150 0 L75 200 L225 200 Z" />
+</svg>
+      </div>
+    </div>
+      </div>
+
+
+ <script src="static/js/dragdrop.js"></script>
+</body>
+</html>
