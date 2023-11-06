@@ -301,7 +301,7 @@ class Generator:
         result = print(f"{name}: {text}") if name in self.print_list else False
         result = print(f"{text}: {self.shapes[name]}") if name in self.shapes else False
 
-    def make_svg(self, names, filled_names, filename, units='mm', svg_attributes=None, attributes=None):
+    def make_svg(self, names, filled_names, filename=None, units='mm', svg_attributes=None, attributes=None):
         """Saves a list of shapes as an svg"""
         paths = []
         for name in names:
@@ -314,14 +314,18 @@ class Generator:
             # self.print(path.bbox(), name)
             paths += path
 
-        filename=f"{self.output_dir}/{filename}_zig{self.short_zigzag_width}.{self.zigzag_height}.{self.long_zigzag_width}_loz{self.loz_long_side}.{self.loz_short_side}.{self.loz_gap}_{date.today().isoformat()}.svg"
-        raw_o
+        filename = filename
+
+        if filename is None:
+            print("Doing this idk why")
+            filename=f"{self.output_dir}/{filename}_zig{self.short_zigzag_width}.{self.zigzag_height}.{self.long_zigzag_width}_loz{self.loz_long_side}.{self.loz_short_side}.{self.loz_gap}_{date.today().isoformat()}.svg"
+
+        else:
+            print("Beep bop beep")
 
         # if (len(attributes) is 0): attributes = np.full(len(names)+1, {})
         wsvg(paths=paths, filename=filename,
              baseunit=units, svg_attributes=svg_attributes, attributes=attributes)
-
-        return paths
 
         
 

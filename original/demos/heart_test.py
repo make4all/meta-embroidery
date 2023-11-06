@@ -46,15 +46,20 @@ def pattern():
   print(path)
 
   generator = Generator()
+  generator.output_dir = "static/output"
   generator.add_path('heart', path)
 
   generator.scale_shape('heart', .4)
   generator.fill_shape(shape_name='heart', rotation=rotation, filltype=pattern_choice)
-  paths = generator.make_svg([], ['heart'], 'heart1', 'mm')
-  generated_path = "../../output/demo.svg"
+
+  filename = 'static/output/heart1.svg'
+
+  generator.make_svg([], ['heart'], filename, 'mm')
+
+  print(filename)
 
 
-  return render_template('index.html', generated_path=generated_path)
+  return render_template('index.html', filename=filename)
 
 app.run()
 
