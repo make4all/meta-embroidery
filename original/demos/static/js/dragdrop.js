@@ -33,6 +33,10 @@ function getShapePathInfo (shape) {
 
 }
 
+function downloadSVG() {
+
+}
+
 function dragMoveListener (event) {
   var target = event.target
   // keep the dragged position in the data-x/data-y attributes
@@ -50,6 +54,7 @@ function dragMoveListener (event) {
 
 // Return SVG with proper in-fill
 function returnPatternedSVG (pattern, path) {
+  const download_btn = document.getElementById("download-btn");
   const data = [pattern, path];
   console.log(data);
   if (pattern == "zigzag") {
@@ -63,6 +68,7 @@ function returnPatternedSVG (pattern, path) {
     .then(response => response.text())
     .then(result => {
       console.log(result);
+      download_btn.classList.remove("disabled");
     })
     .catch(error => {
       console.error('Error:', error);
@@ -80,6 +86,7 @@ function returnPatternedSVG (pattern, path) {
     .then(response => response.text())
     .then(result => {
       console.log(result);
+      download_btn.classList.remove("disabled");
     })
     .catch(error => {
       console.error('Error:', error);
