@@ -33,9 +33,6 @@ function getShapePathInfo (shape) {
 
 }
 
-function downloadSVG() {
-
-}
 
 function dragMoveListener (event) {
   var target = event.target
@@ -53,7 +50,7 @@ function dragMoveListener (event) {
 
 
 // Return SVG with proper in-fill
-function returnPatternedSVG (pattern, path) {
+function returnPatternedSVG (pattern, path, dropzoneElement) {
   const download_btn = document.getElementById("download-btn");
   const data = [pattern, path];
   console.log(data);
@@ -69,6 +66,13 @@ function returnPatternedSVG (pattern, path) {
     .then(result => {
       console.log(result);
       download_btn.classList.remove("disabled");
+      download_btn.classList.add("active");
+    fetch('../static/output/latest.svg')
+    .then(response => response.text())
+    .then((data) => {
+    console.log(data)
+    dropzoneElement.outerHTML = data;
+    })
     })
     .catch(error => {
       console.error('Error:', error);
@@ -87,6 +91,13 @@ function returnPatternedSVG (pattern, path) {
     .then(result => {
       console.log(result);
       download_btn.classList.remove("disabled");
+      download_btn.classList.add("active");
+      fetch('../static/output/latest.svg')
+    .then(response => response.text())
+    .then((data) => {
+    console.log(data)
+    dropzoneElement.outerHTML = data;
+    })
     })
     .catch(error => {
       console.error('Error:', error);
@@ -111,7 +122,7 @@ window.dragMoveListener = dragMoveListener
 // enable draggables to be dropped into this
 interact('.dropzone').dropzone({
   // only accept elements matching this CSS selector
-  //accept: '#yes-drop',
+  accept: '.drag-drop-svg',
   // Require a 75% element overlap for a drop to be possible
   overlap: 0.05,
 
@@ -188,14 +199,8 @@ interact('.svg-dropzone').dropzone({
 
 
     console.log("PATH: " + path);
-    returnPatternedSVG(pattern, path);
+    returnPatternedSVG(pattern, path, dropzoneElement)
 
-    fetch('../static/output/latest.svg')
-    .then(response => response.text())
-    .then((data) => {
-    console.log(data)
-    dropzoneElement.outerHTML = data;
-    })
   },
   ondropdeactivate: function (event) {
     // remove active dropzone feedback
