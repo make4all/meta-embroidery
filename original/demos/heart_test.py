@@ -1,4 +1,4 @@
-from metamaterial_generator import Generator
+from mod_gen import Generator
 
 from flask import Flask, render_template, request
 from flask import Markup
@@ -52,7 +52,7 @@ def pattern():
   generator.scale_shape('heart', .4)
   generator.fill_shape(shape_name='heart', rotation=rotation, filltype=pattern_choice)
 
-  filename = 'static/output/heart1.svg'
+  filename = 'static/output/latest.svg'
 
   generator.make_svg([], ['heart'], filename, 'mm')
 
