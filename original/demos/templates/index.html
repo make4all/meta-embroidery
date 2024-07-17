@@ -52,9 +52,49 @@
     <div class="col-3 interact-area">
       <h3>Properties</h3>
 
+            <!-- Select Shape -->
+      <div class="row">
+        <div class="col-12">
+          <h4>GAI Import Options</h4>
+
+          <form>
+          <select class="form-select" aria-label="Default select example">
+  <option selected>Select Model</option>
+  <option value="1">Stability</option>
+  <option value="2">DALLE-3</option>
+  <option value="3">Other diffusion</option>
+</select>
+
+<hr>
+ <div class="mb-3">
+    <label for="shapeToMake" class="form-label">{{ shape }}</label>
+    <input type="text" class="form-control" id="shapeDesired" aria-describedby="enterShape">
+    <div id="promptHelp" class="form-text">This will produce an embroiderable SVG of your desired shape.</div>
+  </div>
+
+  <hr>
+
+<label for="customRange2" class="form-label">Maximum Colors</label>
+<input type="range" class="form-range" min="1" max="10" id="maxColors" onchange="updateColorInput(this.value);" value="{{ color }}">
+<input type="text" id="colorInput" value="">
+
+
+
+<label for="customRange2" class="form-label">Maximum SVG Paths</label>
+<input type="range" class="form-range" min="1" max="150" id="maxPaths" onchange="updatePathInput(this.value);">
+<input type="text" id="pathInput" value="">
+
+<button type="submit" class="btn btn-primary" onclick="importShapeFromGAI()">Submit</button>
+
+</form>
+
+</div>
+</div>
+
       <!-- Select Shape -->
       <div class="row">
-        <div class="col">
+        <div class="col-12">
+          <h4> Default Options </h4>
           <div class="dropdown">
   <a class="btn btn-secondary dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
     Select Shapes
@@ -63,7 +103,7 @@
   <ul class="dropdown-menu">
     <li><a class="dropdown-item" href="#basic">Basic Shapes</a></li>
     <li><a class="dropdown-item" href="#">Body Accessories</a></li>
-    <li><a class="dropdown-item" href="#">Import from GPT</a></li>
+    <li><a class="dropdown-item" href="#" onclick="importShapeFromGAI()">Import from GAI</a></li>
   </ul>
 </div>
 </div>
@@ -126,8 +166,12 @@
     </div>
 
     <!-- Workspace -->
-    <div class="col-8 interact-area workspace dropzone" id="workspace"">
+    <div class="col-8 interact-area workspace dropzone" id="workspace">
       <h3> Workspace </h3>
+
+
+
+      <img src="{{ url_for('static', filename='output/' + filename + '.svg') }}">
     </div>
   </div>
 </div>
